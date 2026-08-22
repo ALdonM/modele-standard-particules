@@ -10,4 +10,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Ping API
-        run: curl -s https://REPLACE-ME.onrender.com/health > /dev/null
+        run: curl -s https://modele-standard-particules-api.onrender.com/health > /dev/null
