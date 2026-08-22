@@ -1,0 +1,18 @@
+import axios from 'axios';
+
+export const API_URL = 'https://modele-standard-particules-api.onrender.com';
+
+export const api = axios.create({
+  baseURL: API_URL,
+  timeout: 30000,
+  headers: { 'Content-Type': 'application/json' }
+});
+
+// Particules
+export const getParticules = () => api.get('/particules');
+export const getParticule = (id: number) => api.get(`/particules/${id}`);
+export const createParticule = (data: any) => api.post('/particules', data);
+
+// Groupes & Interactions
+export const getGroupes = () => api.get('/groupes');
+export const getInteractions = () => api.get('/interactions');
