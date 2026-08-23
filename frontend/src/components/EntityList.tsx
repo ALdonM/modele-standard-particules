@@ -18,6 +18,11 @@ const EntityList: React.FC = () => {
   const [visibleColumns, setVisibleColumns] = useState<string[]>([]);
   const [showColumnsPanel, setShowColumnsPanel] = useState(false);
   const [sortConfig, setSortConfig] = useState<{key: string; direction: 'asc' | 'desc'} | null>(null);
+  
+  // Liens externes
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+  const [rowReferences, setRowReferences] = useState<Record<number, any[]>>({});
+  const [loadingRefs, setLoadingRefs] = useState<Record<number, boolean>>({});
 
   const fetchData = useCallback(async () => {
     if (!config) return;
@@ -71,6 +76,42 @@ const EntityList: React.FC = () => {
     setVisibleColumns(defaultCols);
     fetchData();
   }, [entity, config, fetchData]);
+
+  const getEntityRefName = () => {
+    if (entity === 'particules') return 'PARTICULE';
+    if (entity === 'interactions') return 'INTERACTION_FONDAMENTALE';
+    if (entity === 'groupes') return 'GROUPE';
+    if (entity === 'processus') return 'PROCESSUS_DYNAMIQUE';
+    if (entity === 'proprietes') return 'PROPRIETE_QUANTIQUE';
+    if (entity === 'regles') return 'REGLE_CONSERVATION';
+    return 'PARTICULE';
+  };
+
+  const toggleReferences = async (id: number) => {
+    const newExpanded = new Set(expandedRows);
+    if (newExpanded.has(id)) {
+      newExpanded.delete(id);
+      setExpandedRows(newExpanded);
+      return;
+    }
+    
+    newExpanded.add(id);
+    setExpandedRows(newExpanded);
+    
+    if (!rowReferences[id]) {
+      setLoadingRefs(prev => ({ ...prev, [id]: true }));
+      try {
+        const response = await api.get('/references', {
+          params: { entite_cible: getEntityRefName(), id_cible: id }
+        });
+        setRowReferences(prev => ({ ...prev, [id]: response.data }));
+      } catch (err) {
+        setRowReferences(prev => ({ ...prev, [id]: [] }));
+      } finally {
+        setLoadingRefs(prev => ({ ...prev, [id]: false }));
+      }
+    }
+  };
 
   const handleSearch = (criteria: FilterCriterion[], logic: ('ET' | 'OU')[]) => {
     if (criteria.length === 0 || criteria.every(c => c.value === '' || c.value === null)) {
@@ -228,46 +269,91 @@ const EntityList: React.FC = () => {
           <tbody>
             {sortedData.length === 0 ? (
               <tr>
-                <td colSpan={visibleColumns.length + 1} className="no-data">
+                <td colSpan={Math.max(visibleColumns.length + 1, 1)} className="no-data">
                   Aucune donnée trouvée
                 </td>
               </tr>
             ) : (
               sortedData.map((item: any) => (
-                <tr key={item[getIdField()]}>
-                  <td className="actions-cell">
-                    {isSignedIn && (
-                      <>
-                        <button 
-                          className="btn-icon" 
-                          onClick={() => navigate(`/${entity}/edit/${item[getIdField()]}`)}
-                          title="Modifier"
-                        >
-                          ✏️
-                        </button>
-                        <button 
-                          className="btn-icon btn-danger" 
-                          onClick={() => alert('Suppression logique avec audit — à implémenter')}
-                          title="Supprimer"
-                        >
-                          🗑️
-                        </button>
-                      </>
-                    )}
-                  </td>
-                  {config.fields
-                    .filter(f => visibleColumns.includes(f.name))
-                    .map(f => (
-                      <td key={f.name}>
-                        {f.type === 'boolean' 
-                          ? (item[f.name] ? '✅' : '❌')
-                          : item[f.name] !== null && item[f.name] !== undefined 
-                            ? String(item[f.name]) 
-                            : '—'
-                        }
+                <React.Fragment key={item[getIdField()]}>
+                  <tr>
+                    <td className="actions-cell">
+                      <button 
+                        className="btn-icon" 
+                        onClick={() => toggleReferences(item[getIdField()])}
+                        title={expandedRows.has(item[getIdField()]) ? 'Masquer les liens' : 'Liens externes'}
+                      >
+                        {expandedRows.has(item[getIdField()]) ? '🔽' : '🔗'}
+                      </button>
+                      {isSignedIn && (
+                        <>
+                          <button 
+                            className="btn-icon" 
+                            onClick={() => navigate(`/${entity}/edit/${item[getIdField()]}`)}
+                            title="Modifier"
+                          >
+                            ✏️
+                          </button>
+                          <button 
+                            className="btn-icon btn-danger" 
+                            onClick={() => alert('Suppression logique avec audit — à implémenter')}
+                            title="Supprimer"
+                          >
+                            🗑️
+                          </button>
+                        </>
+                      )}
+                    </td>
+                    {config.fields
+                      .filter(f => visibleColumns.includes(f.name))
+                      .map(f => (
+                        <td key={f.name}>
+                          {f.type === 'boolean' 
+                            ? (item[f.name] ? '✅' : '❌')
+                            : item[f.name] !== null && item[f.name] !== undefined 
+                              ? String(item[f.name]) 
+                              : '—'
+                          }
+                        </td>
+                      ))}
+                  </tr>
+                  
+                  {expandedRows.has(item[getIdField()]) && (
+                    <tr className="reference-row">
+                      <td colSpan={Math.max(visibleColumns.length + 1, 1)}>
+                        <div className="reference-panel">
+                          {loadingRefs[item[getIdField()]] ? (
+                            <span>Chargement des liens...</span>
+                          ) : (
+                            <>
+                              <strong>🔗 Liens externes :</strong>
+                              {rowReferences[item[getIdField()]]?.length > 0 ? (
+                                <div className="reference-links">
+                                  {rowReferences[item[getIdField()]].map((ref: any) => (
+                                    <a 
+                                      key={ref.id_reference} 
+                                      href={ref.url} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer" 
+                                      className={`ref-badge ref-${ref.source}`}
+                                    >
+                                      {ref.source === 'pdg' ? '📘 PDG' : 
+                                       ref.source === 'pdg_api' ? '⚙️ PDG API' : 
+                                       ref.source === 'hepdata' ? '📊 HEPData' : 
+                                       ref.source === 'inspire_hep' ? '📄 INSPIRE' : ref.source}
+                                    </a>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="no-ref">Aucun lien externe enregistré</span>
+                              )}
+                            </>
+                          )}
+                        </div>
                       </td>
-                    ))}
-                </tr>
+                    </tr>
+                  )}
+                </React.Fragment>
               ))
             )}
           </tbody>

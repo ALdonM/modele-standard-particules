@@ -302,3 +302,48 @@ body {
   background: #fff3e0;
   border-radius: 12px;
 }
+
+.reference-row {
+  background: #f8f9fa;
+}
+
+.reference-panel {
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.reference-links {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.ref-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  text-decoration: none;
+  color: white;
+  transition: transform 0.1s;
+}
+
+.ref-badge:hover {
+  transform: scale(1.05);
+}
+
+.ref-pdg { background: #1565c0; }
+.ref-pdg_api { background: #3949ab; }
+.ref-hepdata { background: #2e7d32; }
+.ref-inspire_hep { background: #ad1457; }
+
+.no-ref {
+  color: #78909c;
+  font-size: 0.85rem;
+  font-style: italic;
+}

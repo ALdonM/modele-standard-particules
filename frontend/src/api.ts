@@ -16,3 +16,6 @@ export const createParticule = (data: any) => api.post('/particules', data);
 // Groupes & Interactions
 export const getGroupes = () => api.get('/groupes');
 export const getInteractions = () => api.get('/interactions');
+
+export const getReferences = (entiteCible: string, idCible: number) => 
+  api.get('/references', { params: { entite_cible: entiteCible, id_cible: idCible } });
