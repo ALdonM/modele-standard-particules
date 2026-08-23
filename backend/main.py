@@ -107,3 +107,13 @@ def list_interactions(db: Session = Depends(get_db)):
     result = db.execute(text("SELECT * FROM interaction_fondamentale ORDER BY id_interaction"))
     rows = result.mappings().all()
     return [dict(row) for row in rows]
+@app.get("/references")
+def get_references(entite_cible: str, id_cible: int, db: Session = Depends(get_db)):
+    result = db.execute(text("""
+        SELECT id_reference, source, url, type_contenu, fiabilite, date_acces 
+        FROM reference_externe 
+        WHERE entite_cible = :entite AND id_cible = :id
+        ORDER BY source
+    """), {"entite": entite_cible, "id": id_cible})
+    rows = result.mappings().all()
+    return [dict(row) for row in rows]
