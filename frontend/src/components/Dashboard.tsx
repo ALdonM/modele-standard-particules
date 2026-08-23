@@ -1,10 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useUser } from '@clerk/clerk-react';
 import { ENTITY_CONFIGS } from '../types';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-
+  const { isSignedIn } = useUser();
   const entities = Object.values(ENTITY_CONFIGS);
 
   return (
@@ -35,12 +36,14 @@ const Dashboard: React.FC = () => {
               >
                 📋 Consulter
               </button>
-              <button 
-                className="btn btn-secondary"
-                onClick={() => navigate(`/${entity.key}/create`)}
-              >
-                ➕ Créer
-              </button>
+              {isSignedIn && (
+                <button 
+                  className="btn btn-secondary"
+                  onClick={() => navigate(`/${entity.key}/create`)}
+                >
+                  ➕ Créer
+                </button>
+              )}
             </div>
           </div>
         ))}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useUser } from '@clerk/clerk-react';
 import { ENTITY_CONFIGS, EntityType } from '../types';
 import { api } from '../api';
 
@@ -9,16 +10,32 @@ const EntityForm: React.FC = () => {
   const config = entity ? ENTITY_CONFIGS[entity] : null;
   const isEdit = !!id;
   const numericId = id ? parseInt(id) : 0;
+  const { isSignedIn } = useUser();
 
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  // ⛔ GARDE : accès réservé aux connectés
+  if (!isSignedIn) {
+    return (
+      <div className="entity-form">
+        <button className="back-link" onClick={() => navigate('/')}>← Retour à l'accueil</button>
+        <div className="access-denied">
+          <h3>🔐 Accès réservé</h3>
+          <p>Vous devez être connecté pour créer ou modifier une entité.</p>
+          <p style={{fontSize: '0.9rem', color: '#666', marginTop: '1rem'}}>
+            La consultation des données reste libre et gratuite.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   useEffect(() => {
     if (!config) return;
     
-    // Initialisation avec valeurs par défaut
     const defaults: Record<string, any> = {};
     config.fields.forEach(f => {
       if (f.type === 'boolean') defaults[f.name] = false;
@@ -48,7 +65,6 @@ const EntityForm: React.FC = () => {
     setError('');
 
     try {
-      // Nettoyage des données
       const payload: Record<string, any> = {};
       config.fields.forEach(f => {
         let val = formData[f.name];
@@ -62,7 +78,6 @@ const EntityForm: React.FC = () => {
       });
 
       if (isEdit) {
-        // Pour l'instant, l'API n'a pas de PUT. On simule.
         alert('Modification enregistrée (simulation — endpoint PUT à ajouter dans l\'API)');
       } else {
         if (entity === 'particules') {

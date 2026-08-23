@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useUser } from '@clerk/clerk-react';
 import { ENTITY_CONFIGS, EntityType, FilterCriterion } from '../types';
 import { api } from '../api';
 import QueryBuilder from './QueryBuilder';
@@ -8,6 +9,7 @@ const EntityList: React.FC = () => {
   const { entity } = useParams<{ entity: EntityType }>();
   const navigate = useNavigate();
   const config = entity ? ENTITY_CONFIGS[entity] : null;
+  const { isSignedIn } = useUser();
 
   const [data, setData] = useState<any[]>([]);
   const [filteredData, setFilteredData] = useState<any[]>([]);
@@ -15,6 +17,7 @@ const EntityList: React.FC = () => {
   const [error, setError] = useState('');
   const [visibleColumns, setVisibleColumns] = useState<string[]>([]);
   const [showColumnsPanel, setShowColumnsPanel] = useState(false);
+  const [sortConfig, setSortConfig] = useState<{key: string; direction: 'asc' | 'desc'} | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!config) return;
@@ -111,7 +114,29 @@ const EntityList: React.FC = () => {
     });
 
     setFilteredData(result);
+    setSortConfig(null);
   };
+
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const sortedData = React.useMemo(() => {
+    if (!sortConfig) return filteredData;
+    return [...filteredData].sort((a, b) => {
+      const aVal = a[sortConfig.key];
+      const bVal = b[sortConfig.key];
+      if (aVal === null || aVal === undefined) return 1;
+      if (bVal === null || bVal === undefined) return -1;
+      if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [filteredData, sortConfig]);
 
   const toggleColumn = (fieldName: string) => {
     setVisibleColumns(prev => 
@@ -142,9 +167,13 @@ const EntityList: React.FC = () => {
       <h2>{config.icon} {config.label}</h2>
       
       <div className="list-toolbar">
-        <button className="btn btn-primary" onClick={() => navigate(`/${entity}/create`)}>
-          ➕ Créer une {config.label.toLowerCase().slice(0, -1)}
-        </button>
+        {isSignedIn ? (
+          <button className="btn btn-primary" onClick={() => navigate(`/${entity}/create`)}>
+            ➕ Créer une {config.label.toLowerCase().slice(0, -1)}
+          </button>
+        ) : (
+          <span className="login-hint">🔐 Connectez-vous pour contribuer</span>
+        )}
         <button 
           className="btn btn-secondary" 
           onClick={() => setShowColumnsPanel(!showColumnsPanel)}
@@ -175,7 +204,8 @@ const EntityList: React.FC = () => {
       {error && <p className="error-msg">{error}</p>}
 
       <div className="results-info">
-        {filteredData.length} résultat{filteredData.length > 1 ? 's' : ''} sur {data.length} au total
+        {sortedData.length} résultat{sortedData.length > 1 ? 's' : ''} sur {data.length} au total
+        {sortConfig && ` • Trié par ${getFieldLabel(sortConfig.key)} (${sortConfig.direction === 'asc' ? 'croissant' : 'décroissant'})`}
       </div>
 
       <div className="table-container">
@@ -186,35 +216,44 @@ const EntityList: React.FC = () => {
               {config.fields
                 .filter(f => visibleColumns.includes(f.name))
                 .map(f => (
-                  <th key={`h-${f.name}`}>{getFieldLabel(f.name)}</th>
+                  <th key={`h-${f.name}`} onClick={() => handleSort(f.name)}>
+                    {getFieldLabel(f.name)}
+                    {sortConfig?.key === f.name && (
+                      <span className="sort-indicator">{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>
+                    )}
+                  </th>
                 ))}
             </tr>
           </thead>
           <tbody>
-            {filteredData.length === 0 ? (
+            {sortedData.length === 0 ? (
               <tr>
                 <td colSpan={visibleColumns.length + 1} className="no-data">
                   Aucune donnée trouvée
                 </td>
               </tr>
             ) : (
-              filteredData.map((item: any) => (
+              sortedData.map((item: any) => (
                 <tr key={item[getIdField()]}>
                   <td className="actions-cell">
-                    <button 
-                      className="btn-icon" 
-                      onClick={() => navigate(`/${entity}/edit/${item[getIdField()]}`)}
-                      title="Modifier"
-                    >
-                      ✏️
-                    </button>
-                    <button 
-                      className="btn-icon btn-danger" 
-                      onClick={() => alert('Suppression logique avec audit — à implémenter')}
-                      title="Supprimer"
-                    >
-                      🗑️
-                    </button>
+                    {isSignedIn && (
+                      <>
+                        <button 
+                          className="btn-icon" 
+                          onClick={() => navigate(`/${entity}/edit/${item[getIdField()]}`)}
+                          title="Modifier"
+                        >
+                          ✏️
+                        </button>
+                        <button 
+                          className="btn-icon btn-danger" 
+                          onClick={() => alert('Suppression logique avec audit — à implémenter')}
+                          title="Supprimer"
+                        >
+                          🗑️
+                        </button>
+                      </>
+                    )}
                   </td>
                   {config.fields
                     .filter(f => visibleColumns.includes(f.name))
