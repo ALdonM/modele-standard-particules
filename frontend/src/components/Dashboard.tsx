@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ENTITY_CONFIGS, EntityType } from '../types';
+import { ENTITY_CONFIGS } from '../types';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();

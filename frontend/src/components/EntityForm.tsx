@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ENTITY_CONFIGS, EntityType, Particule } from '../types';
+import { ENTITY_CONFIGS, EntityType } from '../types';
 import { api } from '../api';
 
 const EntityForm: React.FC = () => {
@@ -28,21 +28,13 @@ const EntityForm: React.FC = () => {
     setFormData(defaults);
 
     if (isEdit && entity === 'particules') {
-      loadParticule(numericId);
+      setLoading(true);
+      api.get(`/particules/${numericId}`)
+        .then(response => setFormData(response.data))
+        .catch(() => setError('Impossible de charger la particule'))
+        .finally(() => setLoading(false));
     }
-  }, [entity, id]);
-
-  const loadParticule = async (particuleId: number) => {
-    setLoading(true);
-    try {
-      const response = await api.get(`/particules/${particuleId}`);
-      setFormData(response.data);
-    } catch (err) {
-      setError('Impossible de charger la particule');
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [config, isEdit, entity, numericId]);
 
   const handleChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));

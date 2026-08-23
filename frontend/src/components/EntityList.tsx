@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ENTITY_CONFIGS, EntityType, FilterCriterion, Particule, Groupe, Interaction } from '../types';
+import { ENTITY_CONFIGS, EntityType, FilterCriterion } from '../types';
 import { api } from '../api';
 import QueryBuilder from './QueryBuilder';
 
@@ -16,17 +16,7 @@ const EntityList: React.FC = () => {
   const [visibleColumns, setVisibleColumns] = useState<string[]>([]);
   const [showColumnsPanel, setShowColumnsPanel] = useState(false);
 
-  useEffect(() => {
-    if (!config) return;
-    
-    // Colonnes visibles par défaut
-    const defaultCols = config.fields.map(f => f.name);
-    setVisibleColumns(defaultCols);
-    
-    fetchData();
-  }, [entity, config]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!config) return;
     setLoading(true);
     setError('');
@@ -39,9 +29,8 @@ const EntityList: React.FC = () => {
         ? 'Endpoint non encore implémenté dans l\'API. Données de démonstration utilisées.' 
         : 'Erreur de connexion à l\'API'
       );
-      // Données de fallback pour démo
       if (entity === 'particules') {
-        const demo: Particule[] = [
+        const demo = [
           { id_particule: 1, nom_particule: 'électron', symbole: 'e⁻', masse_mev: 0.511, spin: 0.5, charge_e: -1, duree_vie_s: undefined, nombre_baryonique_B: 0, nombre_leptonique_L: 1, est_elementaire: true },
           { id_particule: 2, nom_particule: 'proton', symbole: 'p⁺', masse_mev: 938.272, spin: 0.5, charge_e: 1, duree_vie_s: undefined, nombre_baryonique_B: 1, nombre_leptonique_L: 0, est_elementaire: false },
           { id_particule: 3, nom_particule: 'neutron', symbole: 'n', masse_mev: 939.565, spin: 0.5, charge_e: 0, duree_vie_s: 879.4, nombre_baryonique_B: 1, nombre_leptonique_L: 0, est_elementaire: false },
@@ -49,7 +38,7 @@ const EntityList: React.FC = () => {
         setData(demo);
         setFilteredData(demo);
       } else if (entity === 'interactions') {
-        const demo: Interaction[] = [
+        const demo = [
           { id_interaction: 1, nom_interaction: 'gravitation', portee_effective_m: undefined, constante_couplage: 6.674e-11 },
           { id_interaction: 2, nom_interaction: 'électromagnétique', portee_effective_m: undefined, constante_couplage: 0.007297 },
           { id_interaction: 3, nom_interaction: 'faible', portee_effective_m: 1e-18, constante_couplage: 0.03 },
@@ -58,7 +47,7 @@ const EntityList: React.FC = () => {
         setData(demo);
         setFilteredData(demo);
       } else if (entity === 'groupes') {
-        const demo: Groupe[] = [
+        const demo = [
           { id_groupe: 1, nom_groupe: 'quark', description: 'Fermions fondamentaux', spin_caracteristique: 0.5 },
           { id_groupe: 2, nom_groupe: 'lepton', description: 'Fermions fondamentaux', spin_caracteristique: 0.5 },
           { id_groupe: 3, nom_groupe: 'boson_jauge', description: 'Bosons vecteurs', spin_caracteristique: 1 },
@@ -71,7 +60,14 @@ const EntityList: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [config, entity]);
+
+  useEffect(() => {
+    if (!config) return;
+    const defaultCols = config.fields.map(f => f.name);
+    setVisibleColumns(defaultCols);
+    fetchData();
+  }, [entity, config, fetchData]);
 
   const handleSearch = (criteria: FilterCriterion[], logic: ('ET' | 'OU')[]) => {
     if (criteria.length === 0 || criteria.every(c => c.value === '' || c.value === null)) {
@@ -86,13 +82,12 @@ const EntityList: React.FC = () => {
         if (c.operator === 'IS NULL') return val === null || val === undefined;
         if (val === null || val === undefined) return false;
         
-        // Gestion stricte de null pour TypeScript
         const critVal = c.value;
         if (critVal === null || critVal === undefined) return false;
         
         switch (c.operator) {
-          case '=': return val == critVal;
-          case '!=': return val != critVal;
+          case '=': return val === critVal;
+          case '!=': return val !== critVal;
           case '<': return val < critVal;
           case '>': return val > critVal;
           case '<=': return val <= critVal;
@@ -191,7 +186,7 @@ const EntityList: React.FC = () => {
               {config.fields
                 .filter(f => visibleColumns.includes(f.name))
                 .map(f => (
-                  <th key={f.name}>{f.label}</th>
+                  <th key={`h-${f.name}`}>{getFieldLabel(f.name)}</th>
                 ))}
             </tr>
           </thead>
