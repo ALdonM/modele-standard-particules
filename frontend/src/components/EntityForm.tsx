@@ -17,22 +17,7 @@ const EntityForm: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  // ⛔ GARDE : accès réservé aux connectés
-  if (!isSignedIn) {
-    return (
-      <div className="entity-form">
-        <button className="back-link" onClick={() => navigate('/')}>← Retour à l'accueil</button>
-        <div className="access-denied">
-          <h3>🔐 Accès réservé</h3>
-          <p>Vous devez être connecté pour créer ou modifier une entité.</p>
-          <p style={{fontSize: '0.9rem', color: '#666', marginTop: '1rem'}}>
-            La consultation des données reste libre et gratuite.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
+  // useEffect TOUJOURS en premier, avant tout return conditionnel
   useEffect(() => {
     if (!config) return;
     
@@ -52,6 +37,22 @@ const EntityForm: React.FC = () => {
         .finally(() => setLoading(false));
     }
   }, [config, isEdit, entity, numericId]);
+
+  // GARDE : acces reserve aux connectes (apres tous les hooks)
+  if (!isSignedIn) {
+    return (
+      <div className="entity-form">
+        <button className="back-link" onClick={() => navigate('/')}>← Retour a l'accueil</button>
+        <div className="access-denied">
+          <h3>Acces reserve</h3>
+          <p>Vous devez etre connecte pour creer ou modifier une entite.</p>
+          <p style={{fontSize: '0.9rem', color: '#666', marginTop: '1rem'}}>
+            La consultation des donnees reste libre et gratuite.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const handleChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -78,12 +79,12 @@ const EntityForm: React.FC = () => {
       });
 
       if (isEdit) {
-        alert('Modification enregistrée (simulation — endpoint PUT à ajouter dans l\'API)');
+        alert('Modification enregistree (simulation — endpoint PUT a ajouter dans l\'API)');
       } else {
         if (entity === 'particules') {
           await api.post('/particules', payload);
         } else {
-          alert(`Création pour ${entity} — endpoint à ajouter dans l'API`);
+          alert(`Creation pour ${entity} — endpoint a ajouter dans l'API`);
         }
       }
       
@@ -96,7 +97,7 @@ const EntityForm: React.FC = () => {
   };
 
   if (!config) {
-    return <div className="entity-form"><h2>Entité inconnue</h2></div>;
+    return <div className="entity-form"><h2>Entite inconnue</h2></div>;
   }
 
   if (loading) return <div className="entity-form"><p>Chargement...</p></div>;
@@ -104,11 +105,11 @@ const EntityForm: React.FC = () => {
   return (
     <div className="entity-form">
       <button className="back-link" onClick={() => navigate(`/${entity}/list`)}>
-        ← Retour à la liste
+        ← Retour a la liste
       </button>
       
       <h2>
-        {isEdit ? '✏️ Modifier' : '➕ Créer'} {config.label.toLowerCase().slice(0, -1)}
+        {isEdit ? 'Modifier' : 'Creer'} {config.label.toLowerCase().slice(0, -1)}
       </h2>
 
       {error && <div className="error-banner">{error}</div>}
@@ -118,7 +119,7 @@ const EntityForm: React.FC = () => {
           <div key={field.name} className="form-group">
             <label htmlFor={field.name}>
               {field.label}
-              {field.type === 'select' && <span className="badge-liste">Liste fermée</span>}
+              {field.type === 'select' && <span className="badge-liste">Liste fermee</span>}
             </label>
             
             {field.type === 'select' && field.options ? (
@@ -131,7 +132,7 @@ const EntityForm: React.FC = () => {
                 }}
                 required
               >
-                <option value="">-- Sélectionner --</option>
+                <option value="">-- Selectionner --</option>
                 {field.options.map(opt => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
@@ -166,7 +167,7 @@ const EntityForm: React.FC = () => {
             
             {field.type === 'select' && (
               <small className="field-help">
-                Valeur prédéfinie par l'administrateur. Contactez un admin pour ajouter une nouvelle valeur.
+                Valeur predefinie par l'administrateur. Contactez un admin pour ajouter une nouvelle valeur.
               </small>
             )}
           </div>
@@ -174,7 +175,7 @@ const EntityForm: React.FC = () => {
 
         <div className="form-actions">
           <button type="submit" className="btn btn-primary" disabled={saving}>
-            {saving ? '💾 Sauvegarde...' : (isEdit ? '💾 Mettre à jour' : '💾 Créer')}
+            {saving ? 'Sauvegarde...' : (isEdit ? 'Mettre a jour' : 'Creer')}
           </button>
           <button type="button" className="btn btn-secondary" onClick={() => navigate(`/${entity}/list`)}>
             Annuler
