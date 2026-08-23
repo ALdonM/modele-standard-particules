@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { ENTITY_CONFIGS, EntityType, FilterCriterion } from '../types';
@@ -19,7 +19,6 @@ const EntityList: React.FC = () => {
   const [showColumnsPanel, setShowColumnsPanel] = useState(false);
   const [sortConfig, setSortConfig] = useState<{key: string; direction: 'asc' | 'desc'} | null>(null);
   
-  // Liens externes
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [rowReferences, setRowReferences] = useState<Record<number, any[]>>({});
   const [loadingRefs, setLoadingRefs] = useState<Record<number, boolean>>({});
@@ -34,13 +33,13 @@ const EntityList: React.FC = () => {
       setFilteredData(response.data);
     } catch (err: any) {
       setError(err.response?.status === 404 
-        ? 'Endpoint non encore implémenté dans l\'API. Données de démonstration utilisées.' 
-        : 'Erreur de connexion à l\'API'
+        ? 'Endpoint non encore implemente dans l\'API. Donnees de demonstration utilisees.' 
+        : 'Erreur de connexion a l\'API'
       );
       if (entity === 'particules') {
         const demo = [
-          { id_particule: 1, nom_particule: 'électron', symbole: 'e⁻', masse_mev: 0.511, spin: 0.5, charge_e: -1, duree_vie_s: undefined, nombre_baryonique_B: 0, nombre_leptonique_L: 1, est_elementaire: true },
-          { id_particule: 2, nom_particule: 'proton', symbole: 'p⁺', masse_mev: 938.272, spin: 0.5, charge_e: 1, duree_vie_s: undefined, nombre_baryonique_B: 1, nombre_leptonique_L: 0, est_elementaire: false },
+          { id_particule: 1, nom_particule: 'electron', symbole: 'e-', masse_mev: 0.511, spin: 0.5, charge_e: -1, duree_vie_s: undefined, nombre_baryonique_B: 0, nombre_leptonique_L: 1, est_elementaire: true },
+          { id_particule: 2, nom_particule: 'proton', symbole: 'p+', masse_mev: 938.272, spin: 0.5, charge_e: 1, duree_vie_s: undefined, nombre_baryonique_B: 1, nombre_leptonique_L: 0, est_elementaire: false },
           { id_particule: 3, nom_particule: 'neutron', symbole: 'n', masse_mev: 939.565, spin: 0.5, charge_e: 0, duree_vie_s: 879.4, nombre_baryonique_B: 1, nombre_leptonique_L: 0, est_elementaire: false },
         ];
         setData(demo);
@@ -48,7 +47,7 @@ const EntityList: React.FC = () => {
       } else if (entity === 'interactions') {
         const demo = [
           { id_interaction: 1, nom_interaction: 'gravitation', portee_effective_m: undefined, constante_couplage: 6.674e-11 },
-          { id_interaction: 2, nom_interaction: 'électromagnétique', portee_effective_m: undefined, constante_couplage: 0.007297 },
+          { id_interaction: 2, nom_interaction: 'electromagnetique', portee_effective_m: undefined, constante_couplage: 0.007297 },
           { id_interaction: 3, nom_interaction: 'faible', portee_effective_m: 1e-18, constante_couplage: 0.03 },
           { id_interaction: 4, nom_interaction: 'forte', portee_effective_m: 1e-15, constante_couplage: 1 },
         ];
@@ -166,7 +165,7 @@ const EntityList: React.FC = () => {
     setSortConfig({ key, direction });
   };
 
-  const sortedData = React.useMemo(() => {
+  const sortedData = useMemo(() => {
     if (!sortConfig) return filteredData;
     return [...filteredData].sort((a, b) => {
       const aVal = a[sortConfig.key];
@@ -199,33 +198,33 @@ const EntityList: React.FC = () => {
   };
 
   if (!config) {
-    return <div className="entity-list"><h2>Entité inconnue</h2></div>;
+    return <div className="entity-list"><h2>Entite inconnue</h2></div>;
   }
 
   return (
     <div className="entity-list">
-      <button className="back-link" onClick={() => navigate('/')}>← Retour à l'accueil</button>
+      <button className="back-link" onClick={() => navigate('/')}>← Retour a l'accueil</button>
       <h2>{config.icon} {config.label}</h2>
       
       <div className="list-toolbar">
         {isSignedIn ? (
           <button className="btn btn-primary" onClick={() => navigate(`/${entity}/create`)}>
-            ➕ Créer une {config.label.toLowerCase().slice(0, -1)}
+            + Creer une {config.label.toLowerCase().slice(0, -1)}
           </button>
         ) : (
-          <span className="login-hint">🔐 Connectez-vous pour contribuer</span>
+          <span className="login-hint">Connectez-vous pour contribuer</span>
         )}
         <button 
           className="btn btn-secondary" 
           onClick={() => setShowColumnsPanel(!showColumnsPanel)}
         >
-          📊 Colonnes
+          Colonnes
         </button>
       </div>
 
       {showColumnsPanel && (
         <div className="columns-panel">
-          <strong>Colonnes affichées :</strong>
+          <strong>Colonnes affichees :</strong>
           {config.fields.map(f => (
             <label key={f.name} className="column-checkbox">
               <input
@@ -245,8 +244,8 @@ const EntityList: React.FC = () => {
       {error && <p className="error-msg">{error}</p>}
 
       <div className="results-info">
-        {sortedData.length} résultat{sortedData.length > 1 ? 's' : ''} sur {data.length} au total
-        {sortConfig && ` • Trié par ${getFieldLabel(sortConfig.key)} (${sortConfig.direction === 'asc' ? 'croissant' : 'décroissant'})`}
+        {sortedData.length} resultat{sortedData.length > 1 ? 's' : ''} sur {data.length} au total
+        {sortConfig && ` • Trie par ${getFieldLabel(sortConfig.key)} (${sortConfig.direction === 'asc' ? 'croissant' : 'decroissant'})`}
       </div>
 
       <div className="table-container">
@@ -270,7 +269,7 @@ const EntityList: React.FC = () => {
             {sortedData.length === 0 ? (
               <tr>
                 <td colSpan={Math.max(visibleColumns.length + 1, 1)} className="no-data">
-                  Aucune donnée trouvée
+                  Aucune donnee trouvee
                 </td>
               </tr>
             ) : (
@@ -283,7 +282,7 @@ const EntityList: React.FC = () => {
                         onClick={() => toggleReferences(item[getIdField()])}
                         title={expandedRows.has(item[getIdField()]) ? 'Masquer les liens' : 'Liens externes'}
                       >
-                        {expandedRows.has(item[getIdField()]) ? '🔽' : '🔗'}
+                        {expandedRows.has(item[getIdField()]) ? '▼' : '🔗'}
                       </button>
                       {isSignedIn && (
                         <>
@@ -296,7 +295,7 @@ const EntityList: React.FC = () => {
                           </button>
                           <button 
                             className="btn-icon btn-danger" 
-                            onClick={() => alert('Suppression logique avec audit — à implémenter')}
+                            onClick={() => alert('Suppression logique avec audit — a implementer')}
                             title="Supprimer"
                           >
                             🗑️
@@ -309,7 +308,7 @@ const EntityList: React.FC = () => {
                       .map(f => (
                         <td key={f.name}>
                           {f.type === 'boolean' 
-                            ? (item[f.name] ? '✅' : '❌')
+                            ? (item[f.name] ? 'Oui' : 'Non')
                             : item[f.name] !== null && item[f.name] !== undefined 
                               ? String(item[f.name]) 
                               : '—'
@@ -326,7 +325,7 @@ const EntityList: React.FC = () => {
                             <span>Chargement des liens...</span>
                           ) : (
                             <>
-                              <strong>🔗 Liens externes :</strong>
+                              <strong>Liens externes :</strong>
                               {rowReferences[item[getIdField()]]?.length > 0 ? (
                                 <div className="reference-links">
                                   {rowReferences[item[getIdField()]].map((ref: any) => (
@@ -337,15 +336,12 @@ const EntityList: React.FC = () => {
                                       rel="noopener noreferrer" 
                                       className={`ref-badge ref-${ref.source}`}
                                     >
-                                      {ref.source === 'pdg' ? '📘 PDG' : 
-                                       ref.source === 'pdg_api' ? '⚙️ PDG API' : 
-                                       ref.source === 'hepdata' ? '📊 HEPData' : 
-                                       ref.source === 'inspire_hep' ? '📄 INSPIRE' : ref.source}
+                                      {ref.source === 'pdg' ? '📘 PDG' : ref.source}
                                     </a>
                                   ))}
                                 </div>
                               ) : (
-                                <span className="no-ref">Aucun lien externe enregistré</span>
+                                <span className="no-ref">Aucun lien externe enregistre</span>
                               )}
                             </>
                           )}
