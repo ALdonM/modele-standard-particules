@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
-import { ClerkProvider, useUser, useClerk } from '@clerk/clerk-react';
+import { ClerkProvider, useUser, useClerk, UserButton } from '@clerk/clerk-react';
 import './App.css';
 import Dashboard from './components/Dashboard';
 import EntityList from './components/EntityList';
@@ -9,21 +9,18 @@ import EntityForm from './components/EntityForm';
 const clerkPubKey = process.env.REACT_APP_CLERK_PUBLISHABLE_KEY || '';
 
 function AuthNav() {
-  const { isSignedIn, user } = useUser();
+  const { isSignedIn } = useUser();
   const { openSignIn } = useClerk();
 
   return (
     <nav className="nav-auth">
-      <Link to="/">🏠 Accueil</Link>
+      <Link to="/" className="nav-home">🏠 Accueil</Link>
       {!isSignedIn ? (
-        <button 
-          className="btn-auth" 
-          onClick={() => openSignIn()}
-        >
+        <button className="btn-auth" onClick={() => openSignIn()}>
           🔐 Connexion
         </button>
       ) : (
-        <span className="user-greeting">👋 {user?.firstName || user?.username || 'Utilisateur'}</span>
+        <UserButton afterSignOutUrl="/" />
       )}
     </nav>
   );
@@ -38,7 +35,6 @@ function App() {
             <h1>⚛️ SG-MSP</h1>
             <AuthNav />
           </header>
-          
           <main className="app-main">
             <Routes>
               <Route path="/" element={<Dashboard />} />
@@ -47,7 +43,6 @@ function App() {
               <Route path="/:entity/edit/:id" element={<EntityForm />} />
             </Routes>
           </main>
-          
           <footer className="app-footer">
             <p>SG-MSP — Système de Gestion du Modèle Standard des Particules</p>
           </footer>
