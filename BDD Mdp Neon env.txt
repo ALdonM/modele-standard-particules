@@ -1,0 +1,4 @@
+
+
+
+postgresql://neondb_owner:npg_kLrYwFa6jv2S@ep-sparkling-glade-b1cq2v0r-pooler.c-5.eu-central-1.aws.neon.tech/sg_msp?sslmode=require&channel_binding=require

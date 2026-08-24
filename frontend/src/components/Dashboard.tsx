@@ -8,6 +8,15 @@ const Dashboard: React.FC = () => {
   const { isSignedIn } = useUser();
   const entities = Object.values(ENTITY_CONFIGS);
 
+  const countLabels: Record<string, string> = {
+    particules: 'Données en temps réel',
+    interactions: '4 interactions',
+    groupes: '5 groupes',
+    processus: '10 processus',
+    proprietes: '13 propriétés',
+    regles: '6 règles',
+  };
+
   return (
     <div className="dashboard">
       <h2>🎯 Système de Gestion du Modèle Standard</h2>
@@ -24,11 +33,7 @@ const Dashboard: React.FC = () => {
           >
             <div className="entity-icon">{entity.icon}</div>
             <h3>{entity.label}</h3>
-            <p className="entity-count">
-              {entity.key === 'particules' ? 'Données en temps réel' : 
-               entity.key === 'interactions' ? '4 interactions' :
-               entity.key === 'groupes' ? '5 groupes' : 'À venir'}
-            </p>
+            <p className="entity-count">{countLabels[entity.key] || 'Données en temps réel'}</p>
             <div className="entity-actions">
               <button 
                 className="btn btn-primary"
