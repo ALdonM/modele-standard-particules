@@ -107,6 +107,7 @@ def list_interactions(db: Session = Depends(get_db)):
     result = db.execute(text("SELECT * FROM interaction_fondamentale ORDER BY id_interaction"))
     rows = result.mappings().all()
     return [dict(row) for row in rows]
+
 @app.get("/references")
 def get_references(entite_cible: str, id_cible: int, db: Session = Depends(get_db)):
     result = db.execute(text("""
@@ -117,3 +118,20 @@ def get_references(entite_cible: str, id_cible: int, db: Session = Depends(get_d
     """), {"entite": entite_cible, "id": id_cible})
     rows = result.mappings().all()
     return [dict(row) for row in rows]
+
+# ========== NOUVEAUX ENDPOINTS ==========
+
+@app.get("/proprietes")
+def get_proprietes(db: Session = Depends(get_db)):
+    result = db.execute(text("SELECT * FROM propriete_quantique ORDER BY nom_propriete"))
+    return [dict(row) for row in result.mappings().all()]
+
+@app.get("/regles")
+def get_regles(db: Session = Depends(get_db)):
+    result = db.execute(text("SELECT * FROM regle_conservation ORDER BY nom_regle"))
+    return [dict(row) for row in result.mappings().all()]
+
+@app.get("/processus")
+def get_processus(db: Session = Depends(get_db)):
+    result = db.execute(text("SELECT * FROM processus_dynamique ORDER BY nom_processus"))
+    return [dict(row) for row in result.mappings().all()]
