@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { ENTITY_CONFIGS, EntityType, FilterCriterion } from '../types';
@@ -35,46 +35,24 @@ const EntityList: React.FC = () => {
   const [rowReferences, setRowReferences] = useState<Record<number, any[]>>({});
   const [loadingRefs, setLoadingRefs] = useState<Record<number, boolean>>({});
 
-  // Ref pour éviter la boucle infinie dans le retry
-  const fetchDataRef = useRef<(retry?: number) => Promise<void>>();
-
-  const fetchData = useCallback(async (retryCount = 0) => {
-    if (!config) return;
-    setLoading(true);
-    setError('');
-    try {
-      const response = await api.get(config.endpoint);
-      setData(response.data);
-      setFilteredData(response.data);
-      setLoading(false);
-    } catch (err: any) {
-      const isTimeout = !err.response && (err.message?.includes('Network') || err.message?.includes('timeout'));
-      const is502 = err.response?.status >= 502;
-      
-      if ((isTimeout || is502) && retryCount < 2) {
-        setError('L\'API se réchauffe... Nouvelle tentative dans 3 secondes');
-        setTimeout(() => {
-          fetchDataRef.current?.(retryCount + 1);
-        }, 3000);
-        return;
-      }
-      
-      setError(err.response?.status === 404 
-        ? 'Endpoint non encore implemente' 
-        : 'Erreur de connexion a l\'API (cold start possible)'
-      );
-      setLoading(false);
-    }
-  }, [config, entity]);
-
-  useEffect(() => {
-    fetchDataRef.current = fetchData;
-  }, [fetchData]);
-
+  // Chargement simple sans useCallback ni useRef
   useEffect(() => {
     if (!config) return;
     setVisibleColumns(config.fields.map(f => f.name));
-    fetchDataRef.current?.();
+    setLoading(true);
+    setError('');
+    api.get(config.endpoint)
+      .then(response => {
+        setData(response.data);
+        setFilteredData(response.data);
+      })
+      .catch((err: any) => {
+        setError(err.response?.status === 404 
+          ? 'Endpoint non encore implemente' 
+          : 'Erreur de connexion a l\'API (cold start possible)'
+        );
+      })
+      .finally(() => setLoading(false));
   }, [entity, config]);
 
   const applyChip = (chip: string, rawData: any[]) => {
