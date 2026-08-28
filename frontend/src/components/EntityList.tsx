@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { ENTITY_CONFIGS, EntityType, FilterCriterion } from '../types';
@@ -35,7 +35,10 @@ const EntityList: React.FC = () => {
   const [rowReferences, setRowReferences] = useState<Record<number, any[]>>({});
   const [loadingRefs, setLoadingRefs] = useState<Record<number, boolean>>({});
 
-  const fetchData = useCallback(async (retry = 0) => {
+  // Ref pour éviter la boucle infinie dans le retry
+  const fetchDataRef = useRef<(retry?: number) => Promise<void>>();
+
+  const fetchData = useCallback(async (retryCount = 0) => {
     if (!config) return;
     setLoading(true);
     setError('');
@@ -43,13 +46,16 @@ const EntityList: React.FC = () => {
       const response = await api.get(config.endpoint);
       setData(response.data);
       setFilteredData(response.data);
+      setLoading(false);
     } catch (err: any) {
-      const isTimeout = !err.response && err.message?.includes('Network');
+      const isTimeout = !err.response && (err.message?.includes('Network') || err.message?.includes('timeout'));
       const is502 = err.response?.status >= 502;
       
-      if ((isTimeout || is502) && retry < 2) {
+      if ((isTimeout || is502) && retryCount < 2) {
         setError('L\'API se réchauffe... Nouvelle tentative dans 3 secondes');
-        setTimeout(() => fetchData(retry + 1), 3000);
+        setTimeout(() => {
+          fetchDataRef.current?.(retryCount + 1);
+        }, 3000);
         return;
       }
       
@@ -57,22 +63,19 @@ const EntityList: React.FC = () => {
         ? 'Endpoint non encore implemente' 
         : 'Erreur de connexion a l\'API (cold start possible)'
       );
-      // NE VIDE PAS data — garde les anciennes données si elles existent
-      if (data.length === 0) {
-        setFilteredData([]);
-      }
-    } finally {
-      if (!error.includes('Nouvelle tentative')) {
-        setLoading(false);
-      }
+      setLoading(false);
     }
-  }, [config, entity, data.length, error]);
+  }, [config, entity]);
+
+  useEffect(() => {
+    fetchDataRef.current = fetchData;
+  }, [fetchData]);
 
   useEffect(() => {
     if (!config) return;
     setVisibleColumns(config.fields.map(f => f.name));
-    fetchData();
-  }, [entity, config, fetchData]);
+    fetchDataRef.current?.();
+  }, [entity, config]);
 
   const applyChip = (chip: string, rawData: any[]) => {
     setActiveChip(chip);
@@ -90,7 +93,7 @@ const EntityList: React.FC = () => {
       return rawData.filter((p: any) => baryonNames.includes(p.nom_particule) || (p.nombre_baryonique_B || 0) > 0);
     }
     return rawData;
-};
+  };
 
   const chips = ['Tous', 'Fermions', 'Bosons', 'Leptons', 'Quarks', 'Mesons', 'Baryons'];
 
