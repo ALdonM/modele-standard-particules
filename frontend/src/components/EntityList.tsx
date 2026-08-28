@@ -35,7 +35,7 @@ const EntityList: React.FC = () => {
   const [rowReferences, setRowReferences] = useState<Record<number, any[]>>({});
   const [loadingRefs, setLoadingRefs] = useState<Record<number, boolean>>({});
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (retry = 0) => {
     if (!config) return;
     setLoading(true);
     setError('');
@@ -44,18 +44,29 @@ const EntityList: React.FC = () => {
       setData(response.data);
       setFilteredData(response.data);
     } catch (err: any) {
+      const isTimeout = !err.response && err.message?.includes('Network');
+      const is502 = err.response?.status >= 502;
+      
+      if ((isTimeout || is502) && retry < 2) {
+        setError('L\'API se réchauffe... Nouvelle tentative dans 3 secondes');
+        setTimeout(() => fetchData(retry + 1), 3000);
+        return;
+      }
+      
       setError(err.response?.status === 404 
         ? 'Endpoint non encore implemente' 
-        : 'Erreur de connexion'
+        : 'Erreur de connexion a l\'API (cold start possible)'
       );
-      if (entity === 'particules') {
-        setData([]);
+      // NE VIDE PAS data — garde les anciennes données si elles existent
+      if (data.length === 0) {
         setFilteredData([]);
       }
     } finally {
-      setLoading(false);
+      if (!error.includes('Nouvelle tentative')) {
+        setLoading(false);
+      }
     }
-  }, [config, entity]);
+  }, [config, entity, data.length, error]);
 
   useEffect(() => {
     if (!config) return;
@@ -256,7 +267,9 @@ const EntityList: React.FC = () => {
           </thead>
           <tbody>
             {sortedData.length === 0 ? (
-              <tr><td colSpan={Math.max(visibleColumns.length + 1, 1)} className="no-data">Aucune donnee</td></tr>
+              <tr><td colSpan={Math.max(visibleColumns.length + 1, 1)} className="no-data">
+                {data.length === 0 && !loading ? 'Aucune donnee (API en cours de reveil ?)' : 'Aucune donnee'}
+              </td></tr>
             ) : (
               sortedData.map((item: any) => (
                 <React.Fragment key={item[getIdField()]}>
