@@ -4,7 +4,9 @@ from typing import List, Optional
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field
+from decimal import Decimal
+
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
@@ -44,6 +46,31 @@ def get_db():
 
 
 # --- Schémas ---------------------------------------------------------------
+_VIDES = {"", "?", "-", "—", "n/a", "na", "null", "none", "inconnu", "stable"}
+
+
+def _vers_float(v):
+    """Convertit une valeur de la base (nombre, texte '1/2', '?', '1,5'...) en float ou None."""
+    if v is None:
+        return None
+    if isinstance(v, (int, float, Decimal)):
+        return float(v)
+    s = str(v).strip().replace(",", ".")
+    if s.lower() in _VIDES:
+        return None
+    try:
+        return float(s)
+    except ValueError:
+        pass
+    if "/" in s:  # fractions : 1/2, -1/3, 3/2
+        try:
+            num, den = s.split("/", 1)
+            return float(num) / float(den)
+        except (ValueError, ZeroDivisionError):
+            return None
+    return None
+
+
 class ParticuleBase(BaseModel):
     nom_particule: str
     symbole: str
@@ -60,6 +87,20 @@ class ParticuleBase(BaseModel):
         default=0, validation_alias=AliasChoices("nombre_leptonique_L", "nombre_leptonique_l")
     )
     est_elementaire: bool
+
+    # Certaines colonnes sont stockées en texte dans la base ('?', '1/2'...) :
+    # on les normalise avant la validation au lieu de planter.
+    @field_validator(
+        "masse_mev", "spin", "charge_e", "duree_vie_s",
+        "nombre_baryonique_B", "nombre_leptonique_L",
+        mode="before",
+    )
+    @classmethod
+    def _normaliser_nombres(cls, v, info):
+        valeur = _vers_float(v)
+        if valeur is None and info.field_name in ("nombre_baryonique_B", "nombre_leptonique_L"):
+            return 0.0
+        return valeur
 
 
 class ParticuleCreate(ParticuleBase):
