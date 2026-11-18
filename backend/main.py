@@ -26,7 +26,7 @@ if DATABASE_URL.startswith("postgres://"):
 engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_recycle=300)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-app = FastAPI(title="SG-MSP API", version="0.1.1")
+app = FastAPI(title="SG-MSP API", version="0.2.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -107,15 +107,49 @@ class ParticuleCreate(ParticuleBase):
     pass
 
 
+# Colonnes et relations ajoutées en lecture seule (v0.2.0)
+SELECT_PARTICULE = """
+    SELECT p.*,
+      (SELECT array_agg(g.nom_groupe ORDER BY g.id_groupe)
+         FROM appartient_groupe ag JOIN groupe g ON g.id_groupe = ag.id_groupe
+        WHERE ag.id_particule = p.id_particule) AS groupes,
+      (SELECT MIN(id_generation) FROM appartient_generation ag2
+        WHERE ag2.id_particule = p.id_particule) AS generation,
+      (SELECT a.id_antiparticule FROM antiparticule a
+        WHERE a.id_particule = p.id_particule LIMIT 1) AS id_antiparticule,
+      (SELECT a.type_lien FROM antiparticule a
+        WHERE a.id_particule = p.id_particule LIMIT 1) AS type_antiparticule
+    FROM particule p
+"""
+
+
 class ParticuleResponse(ParticuleBase):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
     id_particule: int
+    pdg_id: Optional[str] = None
+    categorie: Optional[str] = None
+    lien_pdg_listing: Optional[str] = None
+    lien_pdg_table: Optional[str] = None
+    groupes: List[str] = []
+    generation: Optional[int] = None
+    id_antiparticule: Optional[int] = None
+    type_antiparticule: Optional[str] = None
+
+    @field_validator("pdg_id", mode="before")
+    @classmethod
+    def _pdg_en_texte(cls, v):
+        return None if v is None else str(v)
+
+    @field_validator("groupes", mode="before")
+    @classmethod
+    def _groupes_vide(cls, v):
+        return v or []
 
 
 # --- Endpoints -------------------------------------------------------------
 @app.get("/")
 def root():
-    return {"message": "SG-MSP API is running", "version": "0.1.1"}
+    return {"message": "SG-MSP API is running", "version": "0.2.0"}
 
 
 @app.get("/health")
@@ -135,21 +169,56 @@ def health_db(db: Session = Depends(get_db)):
 
 
 @app.get("/particules", response_model=List[ParticuleResponse])
-def list_particules(db: Session = Depends(get_db)):
-    rows = db.execute(
-        text("SELECT * FROM particule WHERE est_actif = TRUE ORDER BY id_particule")
-    ).mappings().all()
+def list_particules(
+    groupe: Optional[str] = None,
+    generation: Optional[int] = None,
+    db: Session = Depends(get_db),
+):
+    """Liste les particules actives. Filtres optionnels : ?groupe=boson_jauge&generation=1"""
+    sql = "SELECT * FROM (" + SELECT_PARTICULE + ") t WHERE est_actif = TRUE"
+    params = {}
+    if groupe:
+        sql += " AND :groupe = ANY(groupes)"
+        params["groupe"] = groupe
+    if generation:
+        sql += " AND generation = :generation"
+        params["generation"] = generation
+    sql += " ORDER BY id_particule"
+    rows = db.execute(text(sql), params).mappings().all()
     return [dict(r) for r in rows]
 
 
 @app.get("/particules/{id_particule}", response_model=ParticuleResponse)
 def get_particule(id_particule: int, db: Session = Depends(get_db)):
     row = db.execute(
-        text("SELECT * FROM particule WHERE id_particule = :id"), {"id": id_particule}
+        text(SELECT_PARTICULE + " WHERE p.id_particule = :id"), {"id": id_particule}
     ).mappings().first()
     if not row:
         raise HTTPException(status_code=404, detail="Particule non trouvée")
     return dict(row)
+
+
+@app.get("/particules/{id_particule}/antiparticule")
+def get_antiparticule(id_particule: int, db: Session = Depends(get_db)):
+    row = db.execute(
+        text(
+            """
+            SELECT a.type_lien, q.id_particule, q.nom_particule, q.symbole
+            FROM antiparticule a JOIN particule q ON q.id_particule = a.id_antiparticule
+            WHERE a.id_particule = :id
+            """
+        ),
+        {"id": id_particule},
+    ).mappings().first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Pas d'antiparticule renseignée")
+    return dict(row)
+
+
+@app.get("/generations")
+def list_generations(db: Session = Depends(get_db)):
+    rows = db.execute(text("SELECT * FROM generation ORDER BY id_generation")).mappings().all()
+    return [dict(r) for r in rows]
 
 
 @app.post("/particules", response_model=ParticuleResponse)
