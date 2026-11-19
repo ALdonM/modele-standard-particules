@@ -60,20 +60,17 @@ const EntityList: React.FC = () => {
     if (chip === 'Tous') return rawData;
     if (chip === 'Fermions') return rawData.filter((p: any) => p.spin !== null && p.spin !== undefined && p.spin % 1 !== 0);
     if (chip === 'Bosons') return rawData.filter((p: any) => p.spin !== null && p.spin !== undefined && p.spin % 1 === 0);
-    if (chip === 'Leptons') {
-      const leptonNames = ['electron','muon','tau','neutrino electron','neutrino muon','neutrino tau','positron','anti-muon','anti-tau','anti-neutrino electron','anti-neutrino muon','anti-neutrino tau'];
-      return rawData.filter((p: any) => leptonNames.includes(p.nom_particule) || Math.abs(p.nombre_leptonique_L || 0) > 0);
-    }
-    if (chip === 'Quarks') return rawData.filter((p: any) => p.nom_particule?.includes('quark'));
-    if (chip === 'Mesons') return rawData.filter((p: any) => !p.est_elementaire && (p.nombre_baryonique_B || 0) === 0 && p.spin !== undefined);
-    if (chip === 'Baryons') {
-      const baryonNames = ['proton','neutron','lambda','sigma+','sigma0','sigma-','cascade0','cascade-','omega-','lambda_c+','sigma_c++','xi_c+','omega_c0','Delta++','Delta+','Delta0','Delta-','Lambda_b0','Sigma_b+','Sigma_b0','Sigma_b-','Xi_b0','Xi_b-','Omega_b-'];
-      return rawData.filter((p: any) => baryonNames.includes(p.nom_particule) || (p.nombre_baryonique_B || 0) > 0);
-    }
+    // Les groupes viennent de l'API (v0.2.0) : p.groupes = ['quark'], ['lepton'], ['boson_jauge'], ['hadron']...
+    const inGroup = (p: any, ...names: string[]) => (p.groupes || []).some((g: string) => names.includes(g));
+    if (chip === 'Bosons fond.') return rawData.filter((p: any) => inGroup(p, 'boson_jauge', 'boson_higgs'));
+    if (chip === 'Leptons') return rawData.filter((p: any) => inGroup(p, 'lepton'));
+    if (chip === 'Quarks') return rawData.filter((p: any) => inGroup(p, 'quark'));
+    if (chip === 'Mesons') return rawData.filter((p: any) => inGroup(p, 'hadron') && (p.nombre_baryonique_B || 0) === 0);
+    if (chip === 'Baryons') return rawData.filter((p: any) => inGroup(p, 'hadron') && (p.nombre_baryonique_B || 0) !== 0);
     return rawData;
   };
 
-  const chips = ['Tous', 'Fermions', 'Bosons', 'Leptons', 'Quarks', 'Mesons', 'Baryons'];
+  const chips = ['Tous', 'Fermions', 'Bosons', 'Bosons fond.', 'Leptons', 'Quarks', 'Mesons', 'Baryons'];
 
   const getEntityRefName = () => {
     if (entity === 'particules') return 'PARTICULE';
