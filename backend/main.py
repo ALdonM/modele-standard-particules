@@ -26,7 +26,7 @@ if DATABASE_URL.startswith("postgres://"):
 engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_recycle=300)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-app = FastAPI(title="SG-MSP API", version="0.2.0")
+app = FastAPI(title="SG-MSP API", version="0.3.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -134,6 +134,7 @@ class ParticuleResponse(ParticuleBase):
     generation: Optional[int] = None
     id_antiparticule: Optional[int] = None
     type_antiparticule: Optional[str] = None
+    composition: Optional[str] = None
 
     @field_validator("pdg_id", mode="before")
     @classmethod
@@ -149,7 +150,7 @@ class ParticuleResponse(ParticuleBase):
 # --- Endpoints -------------------------------------------------------------
 @app.get("/")
 def root():
-    return {"message": "SG-MSP API is running", "version": "0.2.0"}
+    return {"message": "SG-MSP API is running", "version": "0.3.0"}
 
 
 @app.get("/health")
@@ -213,6 +214,59 @@ def get_antiparticule(id_particule: int, db: Session = Depends(get_db)):
     if not row:
         raise HTTPException(status_code=404, detail="Pas d'antiparticule renseignée")
     return dict(row)
+
+
+@app.get("/particules/{id_particule}/fiche")
+def get_fiche(id_particule: int, db: Session = Depends(get_db)):
+    """Tout ce qu'il faut pour la fiche d'une particule, en un seul appel."""
+    row = db.execute(
+        text(SELECT_PARTICULE + " WHERE p.id_particule = :id"), {"id": id_particule}
+    ).mappings().first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Particule non trouvée")
+    particule = ParticuleResponse.model_validate(dict(row)).model_dump()
+
+    anti = db.execute(
+        text(
+            """
+            SELECT q.id_particule, q.nom_particule, q.symbole, a.type_lien
+            FROM antiparticule a JOIN particule q ON q.id_particule = a.id_antiparticule
+            WHERE a.id_particule = :id
+            """
+        ),
+        {"id": id_particule},
+    ).mappings().first()
+
+    constituants = db.execute(
+        text(
+            """
+            SELECT q.id_particule, q.nom_particule, q.symbole, c.nombre_constituants, c.type_hadron
+            FROM composition c JOIN particule q ON q.id_particule = c.id_constituant
+            WHERE c.id_hadron = :id
+            ORDER BY q.id_particule
+            """
+        ),
+        {"id": id_particule},
+    ).mappings().all()
+
+    references = db.execute(
+        text(
+            """
+            SELECT id_reference, source, url, type_contenu, fiabilite
+            FROM reference_externe
+            WHERE entite_cible = 'PARTICULE' AND id_cible = :id
+            ORDER BY source
+            """
+        ),
+        {"id": id_particule},
+    ).mappings().all()
+
+    return {
+        "particule": particule,
+        "antiparticule": dict(anti) if anti else None,
+        "constituants": [dict(r) for r in constituants],
+        "references": [dict(r) for r in references],
+    }
 
 
 @app.get("/generations")
