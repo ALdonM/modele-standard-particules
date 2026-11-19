@@ -6,6 +6,7 @@ import { api } from '../api';
 import QueryBuilder from './QueryBuilder';
 
 const formatSpin = (val: any) => {
+  if (val === null || val === undefined) return '—';
   if (val === 0.5) return '1/2';
   if (val === 1.5) return '3/2';
   if (val === 2.5) return '5/2';
@@ -322,6 +323,8 @@ const EntityList: React.FC = () => {
                                  style={{ color: '#1565c0', textDecoration: 'none', fontWeight: 500 }}>{item[f.name]}</a>
                           : f.name === 'spin'
                             ? formatSpin(item[f.name])
+                          : f.name === 'masse_mev' && item[f.name] !== null && item[f.name] !== undefined
+                            ? String(Number(Number(item[f.name]).toPrecision(10)))
                           : f.name === 'charge_e'
                             ? formatCharge(item[f.name])
                             : item[f.name] !== null && item[f.name] !== undefined 
