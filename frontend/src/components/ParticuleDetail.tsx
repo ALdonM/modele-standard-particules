@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api';
+import { termeAnglais, inspireRevues, inspireRecherche } from '../externalLinks';
 
 interface Constituant {
   id_particule: number;
@@ -167,7 +168,9 @@ const ParticuleDetail: React.FC = () => {
                 {r.source === 'pdg' ? '📘 PDG' : r.source}
               </a>
             ))}
-          {!p.lien_pdg_listing && !p.lien_pdg_table && fiche.references.length === 0 && <span className="no-ref">Aucun lien externe</span>}
+          <a className="ref-badge" href={inspireRevues(termeAnglais(p.nom_particule))} target="_blank" rel="noopener noreferrer" title="Articles de synthèse les plus cités">📚 INSPIRE (revues)</a>
+          <a className="ref-badge" href={inspireRecherche(termeAnglais(p.nom_particule))} target="_blank" rel="noopener noreferrer" title="Tous les articles, les plus cités d'abord">🔎 INSPIRE (articles)</a>
+          {!p.lien_pdg_listing && !p.lien_pdg_table && fiche.references.length === 0 && false && <span className="no-ref">Aucun lien externe</span>}
         </div>
       </div>
     </div>
