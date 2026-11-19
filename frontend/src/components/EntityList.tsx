@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { ENTITY_CONFIGS, EntityType, FilterCriterion } from '../types';
@@ -165,6 +165,20 @@ const EntityList: React.FC = () => {
     });
   }, [filteredData, sortConfig]);
 
+  // Ascenseur horizontal en haut du tableau, synchronisé avec celui du bas
+  const topScrollRef = useRef<HTMLDivElement>(null);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const [tableScrollWidth, setTableScrollWidth] = useState(0);
+
+  useEffect(() => {
+    const mesurer = () => {
+      if (tableScrollRef.current) setTableScrollWidth(tableScrollRef.current.scrollWidth);
+    };
+    mesurer();
+    window.addEventListener('resize', mesurer);
+    return () => window.removeEventListener('resize', mesurer);
+  }, [sortedData, visibleColumns, showColumnsPanel, expandedRows]);
+
   const toggleColumn = (fieldName: string) => {
     setVisibleColumns(prev => prev.includes(fieldName) ? prev.filter(c => c !== fieldName) : [...prev, fieldName]);
   };
@@ -237,7 +251,20 @@ const EntityList: React.FC = () => {
         {sortConfig && ` • Trie par ${getFieldLabel(sortConfig.key)} (${sortConfig.direction === 'asc' ? 'croissant' : 'decroissant'})`}
       </div>
 
-      <div className="table-container">
+      <div
+        ref={topScrollRef}
+        onScroll={(ev) => { if (tableScrollRef.current) tableScrollRef.current.scrollLeft = ev.currentTarget.scrollLeft; }}
+        style={{ overflowX: 'auto', overflowY: 'hidden' }}
+        aria-hidden="true"
+      >
+        <div style={{ width: tableScrollWidth, height: 1 }} />
+      </div>
+
+      <div
+        className="table-container"
+        ref={tableScrollRef}
+        onScroll={(ev) => { if (topScrollRef.current) topScrollRef.current.scrollLeft = ev.currentTarget.scrollLeft; }}
+      >
         <table className="data-table">
           <thead>
             <tr>
