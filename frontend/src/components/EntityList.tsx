@@ -38,7 +38,7 @@ const EntityList: React.FC = () => {
   // Chargement simple sans useCallback ni useRef
   useEffect(() => {
     if (!config) return;
-    setVisibleColumns(config.fields.map(f => f.name));
+    setVisibleColumns(config.fields.filter(f => !f.hidden).map(f => f.name));
     setLoading(true);
     setError('');
     api.get(config.endpoint)
@@ -274,6 +274,10 @@ const EntityList: React.FC = () => {
                       <td key={f.name}>
                         {f.type === 'boolean' 
                           ? (item[f.name] ? 'Oui' : 'Non')
+                          : f.type === 'link'
+                            ? (item[f.name]
+                                ? <a href={item[f.name]} target="_blank" rel="noopener noreferrer" className="ref-badge">📘 PDG</a>
+                                : '—')
                           : f.name === 'spin'
                             ? formatSpin(item[f.name])
                             : item[f.name] !== null && item[f.name] !== undefined 
