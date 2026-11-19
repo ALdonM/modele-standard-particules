@@ -5,6 +5,7 @@ import './App.css';
 import Dashboard from './components/Dashboard';
 import EntityList from './components/EntityList';
 import EntityForm from './components/EntityForm';
+import ParticuleDetail from './components/ParticuleDetail';
 
 const clerkPubKey = process.env.REACT_APP_CLERK_PUBLISHABLE_KEY || '';
 
@@ -88,6 +89,7 @@ function App() {
           <main className="app-main">
             <Routes>
               <Route path="/" element={<Dashboard />} />
+              <Route path="/particules/fiche/:id" element={<ParticuleDetail />} />
               <Route path="/:entity/list" element={<EntityList />} />
               <Route path="/:entity/create" element={<EntityForm />} />
               <Route path="/:entity/edit/:id" element={<EntityForm />} />
