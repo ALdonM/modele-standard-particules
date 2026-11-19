@@ -16,6 +16,17 @@ const formatSpin = (val: any) => {
   return String(val);
 };
 
+const formatCharge = (val: any) => {
+  if (val === null || val === undefined) return '—';
+  const n = Number(val);
+  if (n === 0) return '0';
+  const s = n > 0 ? '+' : '-';
+  const a = Math.abs(n);
+  if (Math.abs(a - 1 / 3) < 0.002) return `${s}1/3`;
+  if (Math.abs(a - 2 / 3) < 0.002) return `${s}2/3`;
+  return `${s}${a}`;
+};
+
 const EntityList: React.FC = () => {
   const { entity } = useParams<{ entity: EntityType }>();
   const navigate = useNavigate();
@@ -311,6 +322,8 @@ const EntityList: React.FC = () => {
                                  style={{ color: '#1565c0', textDecoration: 'none', fontWeight: 500 }}>{item[f.name]}</a>
                           : f.name === 'spin'
                             ? formatSpin(item[f.name])
+                          : f.name === 'charge_e'
+                            ? formatCharge(item[f.name])
                             : item[f.name] !== null && item[f.name] !== undefined 
                               ? String(item[f.name]) 
                               : '—'
