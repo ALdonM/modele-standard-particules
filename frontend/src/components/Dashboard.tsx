@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { ENTITY_CONFIGS } from '../types';
 import { api } from '../api';
+import { inspireRecherche } from '../externalLinks';
 
 // Libellé singulier / pluriel pour afficher « 8 interactions » ou « 1 groupe »
 const NOMS: Record<string, [string, string]> = {
@@ -20,6 +21,7 @@ const Dashboard: React.FC = () => {
   const entities = Object.values(ENTITY_CONFIGS);
 
   // Compteurs lus dans l'API (undefined tant que la réponse n'est pas arrivée)
+  const [recherche, setRecherche] = useState('');
   const [counts, setCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
@@ -80,6 +82,31 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
         ))}
+      </div>
+
+      <div className="reference-panel" style={{ marginTop: '2rem' }}>
+        <h3>📚 Ressources externes</h3>
+        <div className="reference-links" style={{ margin: '0.6rem 0' }}>
+          <a className="ref-badge" href="https://pdg.lbl.gov" target="_blank" rel="noopener noreferrer">📘 Particle Data Group</a>
+          <a className="ref-badge" href="https://pdg.lbl.gov/2026/tables/contents_tables.html" target="_blank" rel="noopener noreferrer">📊 Tableaux PDG 2026</a>
+          <a className="ref-badge" href="https://inspirehep.net" target="_blank" rel="noopener noreferrer">📚 INSPIRE HEP</a>
+        </div>
+        <form
+          onSubmit={(ev) => {
+            ev.preventDefault();
+            if (recherche.trim()) window.open(inspireRecherche(recherche.trim()), '_blank', 'noopener');
+          }}
+          style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}
+        >
+          <input
+            type="text"
+            value={recherche}
+            onChange={(ev) => setRecherche(ev.target.value)}
+            placeholder="Rechercher dans la littérature (en anglais) : ex. Higgs boson mass"
+            style={{ flex: '1 1 320px', padding: '0.5rem' }}
+          />
+          <button type="submit" className="btn btn-primary">🔎 Chercher sur INSPIRE</button>
+        </form>
       </div>
     </div>
   );
