@@ -305,6 +305,10 @@ const EntityList: React.FC = () => {
                             ? (item[f.name]
                                 ? <a href={item[f.name]} target="_blank" rel="noopener noreferrer" className="ref-badge">📘 PDG</a>
                                 : '—')
+                          : entity === 'particules' && f.name === 'nom_particule'
+                            ? <a href={`/particules/fiche/${item.id_particule}`}
+                                 onClick={(ev) => { ev.preventDefault(); navigate(`/particules/fiche/${item.id_particule}`); }}
+                                 style={{ color: '#1565c0', textDecoration: 'none', fontWeight: 500 }}>{item[f.name]}</a>
                           : f.name === 'spin'
                             ? formatSpin(item[f.name])
                             : item[f.name] !== null && item[f.name] !== undefined 
