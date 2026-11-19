@@ -62,6 +62,7 @@ const EntityList: React.FC = () => {
     if (chip === 'Bosons') return rawData.filter((p: any) => p.spin !== null && p.spin !== undefined && p.spin % 1 === 0);
     // Les groupes viennent de l'API (v0.2.0) : p.groupes = ['quark'], ['lepton'], ['boson_jauge'], ['hadron']...
     const inGroup = (p: any, ...names: string[]) => (p.groupes || []).some((g: string) => names.includes(g));
+    if (chip === 'Fermions fond.') return rawData.filter((p: any) => inGroup(p, 'quark', 'lepton'));
     if (chip === 'Bosons fond.') return rawData.filter((p: any) => inGroup(p, 'boson_jauge', 'boson_higgs'));
     if (chip === 'Leptons') return rawData.filter((p: any) => inGroup(p, 'lepton'));
     if (chip === 'Quarks') return rawData.filter((p: any) => inGroup(p, 'quark'));
@@ -70,7 +71,7 @@ const EntityList: React.FC = () => {
     return rawData;
   };
 
-  const chips = ['Tous', 'Fermions', 'Bosons', 'Bosons fond.', 'Leptons', 'Quarks', 'Mesons', 'Baryons'];
+  const chips = ['Tous', 'Fermions', 'Fermions fond.', 'Bosons', 'Bosons fond.', 'Leptons', 'Quarks', 'Mesons', 'Baryons'];
 
   const getEntityRefName = () => {
     if (entity === 'particules') return 'PARTICULE';
