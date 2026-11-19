@@ -11,6 +11,14 @@ export interface Particule {
   est_elementaire: boolean;
   est_actif?: boolean;
   date_creation?: string;
+  pdg_id?: string;
+  categorie?: string;
+  lien_pdg_listing?: string;
+  lien_pdg_table?: string;
+  groupes?: string[];
+  generation?: number;
+  id_antiparticule?: number;
+  type_antiparticule?: string;
 }
 
 export interface Groupe {
@@ -49,9 +57,10 @@ export interface EntityConfig {
 export interface FieldConfig {
   name: string;
   label: string;
-  type: 'text' | 'number' | 'select' | 'boolean' | 'date';
+  type: 'text' | 'number' | 'select' | 'boolean' | 'date' | 'link';
   options?: { value: any; label: string }[];
   readonly?: boolean;
+  hidden?: boolean; // masquée par défaut (réactivable via « Colonnes »)
 }
 
 export const ENTITY_CONFIGS: Record<EntityType, EntityConfig> = {
@@ -73,20 +82,31 @@ export const ENTITY_CONFIGS: Record<EntityType, EntityConfig> = {
         { value: 2, label: '2' },
         { value: 2.5, label: '5/2' },
         { value: 3, label: '3' },
+        { value: 3.5, label: '7/2' },
+        { value: 4, label: '4' },
+        { value: 4.5, label: '9/2' },
+        { value: 5.5, label: '11/2' },
       ]},
       { name: 'charge_e', label: 'Charge (e)', type: 'select', options: [
+        { value: -2, label: '-2' },
         { value: -1, label: '-1' },
-        { value: -0.67, label: '-2/3' },
-        { value: -0.33, label: '-1/3' },
+        { value: -0.667, label: '-2/3' },
+        { value: -0.333, label: '-1/3' },
         { value: 0, label: '0' },
-        { value: 0.33, label: '+1/3' },
-        { value: 0.67, label: '+2/3' },
+        { value: 0.333, label: '+1/3' },
+        { value: 0.667, label: '+2/3' },
         { value: 1, label: '+1' },
+        { value: 2, label: '+2' },
       ]},
       { name: 'duree_vie_s', label: 'Durée de vie (s)', type: 'number' },
       { name: 'nombre_baryonique_B', label: 'Nombre baryonique B', type: 'number' },
       { name: 'nombre_leptonique_L', label: 'Nombre leptonique L', type: 'number' },
       { name: 'est_elementaire', label: 'Élémentaire', type: 'boolean' },
+      { name: 'lien_pdg_listing', label: 'PDG (fiche)', type: 'link' },
+      { name: 'lien_pdg_table', label: 'PDG (tableau)', type: 'link' },
+      { name: 'pdg_id', label: 'Identifiant PDG', type: 'text', hidden: true },
+      { name: 'categorie', label: 'Catégorie', type: 'text', hidden: true },
+      { name: 'generation', label: 'Génération', type: 'number', hidden: true },
     ]
   },
   interactions: {
