@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api';
+import { useLang } from '../i18n';
 import { termeAnglais, inspireRevues, inspireRecherche } from '../externalLinks';
 
 interface Constituant {
@@ -58,6 +59,17 @@ const formatMasse = (v?: number | null) => {
   return `${v} MeV/c²`;
 };
 
+// 2.6376e-25 -> « 2,64 × 10⁻²⁵ s » (virgule en français)
+const SUP: Record<string, string> = { '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹' };
+const formatDuree = (v: number, fr: boolean) => {
+  if (v === 0) return '0 s';
+  const [m, e] = v.toExponential(2).split('e');
+  const exp = String(parseInt(e, 10)).split('').map(c => SUP[c] ?? c).join('');
+  const mant = Number(m);
+  const mantTxt = fr ? String(mant).replace('.', ',') : String(mant);
+  return exp === '⁰' ? `${mantTxt} s` : `${mantTxt} × 10${exp} s`;
+};
+
 const formatBaryonique = (v: number) => {
   if (Math.abs(v - 1 / 3) < 0.002) return '+1/3';
   if (Math.abs(v + 1 / 3) < 0.002) return '-1/3';
@@ -67,6 +79,7 @@ const formatBaryonique = (v: number) => {
 const ParticuleDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { t, nom, lang } = useLang();
   const [fiche, setFiche] = useState<Fiche | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -77,42 +90,44 @@ const ParticuleDetail: React.FC = () => {
     api.get(`/particules/${id}/fiche`)
       .then(r => setFiche(r.data))
       .catch((err: any) =>
-        setError(err.response?.status === 404 ? 'Particule introuvable' : "Erreur de connexion à l'API (cold start possible)")
+        setError(err.response?.status === 404 ? 'Particule introuvable' : "Erreur de connexion a l'API (cold start possible)")
       )
       .finally(() => setLoading(false));
   }, [id]);
 
-  if (loading) return <div className="entity-list"><p>Chargement...</p></div>;
+  const msgErreur = (m: string) => t(m);
+
+  if (loading) return <div className="entity-list"><p>{t('Chargement...')}</p></div>;
   if (error || !fiche) {
     return (
       <div className="entity-list">
-        <button className="back-link" onClick={() => navigate('/particules/list')}>← Retour aux particules</button>
-        <p className="error-msg">{error}</p>
+        <button className="back-link" onClick={() => navigate('/particules/list')}>{t('← Retour aux particules')}</button>
+        <p className="error-msg">{msgErreur(error)}</p>
       </div>
     );
   }
 
   const p = fiche.particule;
   const lignes: [string, React.ReactNode][] = [
-    ['Masse', formatMasse(p.masse_mev)],
-    ['Spin', formatSpin(p.spin)],
-    ['Charge (e)', formatCharge(p.charge_e)],
-    ['Durée de vie', p.duree_vie_s !== null && p.duree_vie_s !== undefined ? `${p.duree_vie_s} s` : '— (stable ou non renseignée)'],
-    ['Nombre baryonique B', formatBaryonique(p.nombre_baryonique_B)],
-    ['Nombre leptonique L', String(p.nombre_leptonique_L)],
-    ['Nature', p.est_elementaire ? 'Élémentaire' : 'Composite'],
-    ['Groupe', p.groupes && p.groupes.length > 0 ? p.groupes.join(', ') : '—'],
-    ['Génération', p.generation ? String(p.generation) : '—'],
-    ['Catégorie PDG', p.categorie || '—'],
-    ['Identifiant PDG', p.pdg_id || '—'],
+    [t('Masse'), formatMasse(p.masse_mev)],
+    [t('Spin'), formatSpin(p.spin)],
+    [t('Charge (e)'), formatCharge(p.charge_e)],
+    [t('Durée de vie'), p.duree_vie_s !== null && p.duree_vie_s !== undefined ? formatDuree(p.duree_vie_s, lang === 'fr') : t('— (stable ou non renseignée)')],
+    [t('Nombre baryonique B'), formatBaryonique(p.nombre_baryonique_B)],
+    [t('Nombre leptonique L'), String(p.nombre_leptonique_L)],
+    [t('Nature'), p.est_elementaire ? t('Élémentaire') : t('Composite')],
+    [t('Groupe'), p.groupes && p.groupes.length > 0 ? p.groupes.map(g => (lang === 'fr' && g === 'boson_jauge' ? 'boson de jauge' : lang === 'fr' && g === 'boson_higgs' ? 'boson de Higgs' : t(g))).join(', ') : '—'],
+    [t('Génération'), p.generation ? String(p.generation) : '—'],
+    [t('Catégorie PDG'), p.categorie || '—'],
+    [t('Identifiant PDG'), p.pdg_id || '—'],
   ];
 
   const lienAnti = fiche.antiparticule;
 
   return (
     <div className="entity-list">
-      <button className="back-link" onClick={() => navigate('/particules/list')}>← Retour aux particules</button>
-      <h2>⚛️ {p.nom_particule} <span style={{ color: '#78909c', fontWeight: 400 }}>({p.symbole})</span></h2>
+      <button className="back-link" onClick={() => navigate('/particules/list')}>{t('← Retour aux particules')}</button>
+      <h2>⚛️ {nom(p.nom_particule)} <span style={{ color: '#78909c', fontWeight: 400 }}>({p.symbole})</span></h2>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '0.75rem', margin: '1rem 0' }}>
         {lignes.map(([label, valeur]) => (
@@ -125,16 +140,16 @@ const ParticuleDetail: React.FC = () => {
 
       {fiche.constituants.length > 0 && (
         <div style={{ margin: '1rem 0' }}>
-          <strong>Composition :</strong>{' '}
+          <strong>{t('Composition :')}</strong>{' '}
           {fiche.constituants.map(c => (
             <button
               key={c.id_particule}
               className="chip"
               style={{ margin: '0 0.4rem 0.3rem 0' }}
               onClick={() => navigate(`/particules/fiche/${c.id_particule}`)}
-              title={c.nom_particule}
+              title={nom(c.nom_particule)}
             >
-              {c.nombre_constituants > 1 ? `${c.nombre_constituants} × ` : ''}{c.nom_particule}
+              {c.nombre_constituants > 1 ? `${c.nombre_constituants} × ` : ''}{nom(c.nom_particule)}
             </button>
           ))}
           {p.composition && <span style={{ color: '#666', marginLeft: '0.5rem' }}>({p.composition})</span>}
@@ -142,25 +157,25 @@ const ParticuleDetail: React.FC = () => {
       )}
 
       <div style={{ margin: '1rem 0' }}>
-        <strong>Antiparticule :</strong>{' '}
+        <strong>{t('Antiparticule :')}</strong>{' '}
         {lienAnti ? (
           lienAnti.type_lien === 'identique' ? (
-            <span>elle-même (particule identique à son antiparticule)</span>
+            <span>{t('elle-même (particule identique à son antiparticule)')}</span>
           ) : (
             <button className="chip" onClick={() => navigate(`/particules/fiche/${lienAnti.id_particule}`)}>
-              {lienAnti.nom_particule}
+              {nom(lienAnti.nom_particule)}
             </button>
           )
         ) : (
-          <span className="no-ref">non renseignée</span>
+          <span className="no-ref">{t('non renseignée')}</span>
         )}
       </div>
 
       <div style={{ margin: '1rem 0' }}>
-        <strong>Liens externes :</strong>
+        <strong>{t('Liens externes :')}</strong>
         <div className="reference-links" style={{ marginTop: '0.4rem' }}>
-          {p.lien_pdg_listing && <a className="ref-badge" href={p.lien_pdg_listing} target="_blank" rel="noopener noreferrer">📘 PDG (fiche)</a>}
-          {p.lien_pdg_table && <a className="ref-badge" href={p.lien_pdg_table} target="_blank" rel="noopener noreferrer">📘 PDG (tableau)</a>}
+          {p.lien_pdg_listing && <a className="ref-badge" href={p.lien_pdg_listing} target="_blank" rel="noopener noreferrer">{t('📘 PDG (fiche)')}</a>}
+          {p.lien_pdg_table && <a className="ref-badge" href={p.lien_pdg_table} target="_blank" rel="noopener noreferrer">{t('📘 PDG (tableau)')}</a>}
           {fiche.references
             .filter(r => r.url && r.url !== p.lien_pdg_listing && r.url !== p.lien_pdg_table)
             .map(r => (
@@ -168,9 +183,8 @@ const ParticuleDetail: React.FC = () => {
                 {r.source === 'pdg' ? '📘 PDG' : r.source}
               </a>
             ))}
-          <a className="ref-badge" href={inspireRevues(termeAnglais(p.nom_particule))} target="_blank" rel="noopener noreferrer" title="Articles de synthèse les plus cités">📚 INSPIRE (revues)</a>
-          <a className="ref-badge" href={inspireRecherche(termeAnglais(p.nom_particule))} target="_blank" rel="noopener noreferrer" title="Tous les articles, les plus cités d'abord">🔎 INSPIRE (articles)</a>
-          {!p.lien_pdg_listing && !p.lien_pdg_table && fiche.references.length === 0 && false && <span className="no-ref">Aucun lien externe</span>}
+          <a className="ref-badge" href={inspireRevues(termeAnglais(p.nom_particule))} target="_blank" rel="noopener noreferrer" title={t('Articles de synthèse les plus cités')}>{t('📚 INSPIRE (revues)')}</a>
+          <a className="ref-badge" href={inspireRecherche(termeAnglais(p.nom_particule))} target="_blank" rel="noopener noreferrer" title={t("Tous les articles, les plus cités d'abord")}>{t('🔎 INSPIRE (articles)')}</a>
         </div>
       </div>
     </div>
