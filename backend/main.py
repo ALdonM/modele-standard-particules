@@ -26,13 +26,13 @@ if DATABASE_URL.startswith("postgres://"):
 engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_recycle=300)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-app = FastAPI(title="SG-MSP API", version="0.3.0")
+app = FastAPI(title="SG-MSP API", version="0.3.1")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=False,  # incompatible avec allow_origins=["*"]
-    allow_methods=["*"],
+    allow_methods=["GET"],  # API en lecture seule
     allow_headers=["*"],
 )
 
@@ -273,39 +273,6 @@ def get_fiche(id_particule: int, db: Session = Depends(get_db)):
 def list_generations(db: Session = Depends(get_db)):
     rows = db.execute(text("SELECT * FROM generation ORDER BY id_generation")).mappings().all()
     return [dict(r) for r in rows]
-
-
-@app.post("/particules", response_model=ParticuleResponse)
-def create_particule(particule: ParticuleCreate, db: Session = Depends(get_db)):
-    try:
-        result = db.execute(
-            text(
-                """
-                INSERT INTO particule (nom_particule, symbole, masse_mev, spin, charge_e,
-                                       duree_vie_s, nombre_baryonique_B, nombre_leptonique_L,
-                                       est_elementaire)
-                VALUES (:nom, :symbole, :masse, :spin, :charge, :duree, :B, :L, :elementaire)
-                RETURNING *
-                """
-            ),
-            {
-                "nom": particule.nom_particule,
-                "symbole": particule.symbole,
-                "masse": particule.masse_mev,
-                "spin": particule.spin,
-                "charge": particule.charge_e,
-                "duree": particule.duree_vie_s,
-                "B": particule.nombre_baryonique_B,
-                "L": particule.nombre_leptonique_L,
-                "elementaire": particule.est_elementaire,
-            },
-        )
-        row = result.mappings().first()
-        db.commit()
-    except SQLAlchemyError:
-        db.rollback()
-        raise
-    return dict(row)
 
 
 @app.get("/groupes")
