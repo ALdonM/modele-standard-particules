@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { FilterCriterion, FieldConfig } from '../types';
+import { useLang } from '../i18n';
 
 interface Props {
   fields: FieldConfig[];
@@ -15,6 +16,7 @@ const OPERATORS: Record<string, string[]> = {
 };
 
 const QueryBuilder: React.FC<Props> = ({ fields, onSearch }) => {
+  const { t } = useLang();
   const [criteria, setCriteria] = useState<FilterCriterion[]>([
     { id: 1, field: fields[0]?.name || '', operator: '=', value: '' }
   ]);
@@ -58,7 +60,7 @@ const QueryBuilder: React.FC<Props> = ({ fields, onSearch }) => {
 
   return (
     <div className="query-builder">
-      <h4>🔍 Critères de sélection</h4>
+      <h4>{t('🔍 Critères de sélection')}</h4>
       
       {criteria.map((criterion, index) => {
         const fieldType = getFieldType(criterion.field);
@@ -79,8 +81,8 @@ const QueryBuilder: React.FC<Props> = ({ fields, onSearch }) => {
                   setLogic(newLogic);
                 }}
               >
-                <option value="ET">ET</option>
-                <option value="OU">OU</option>
+                <option value="ET">{t('ET')}</option>
+                <option value="OU">{t('OU')}</option>
               </select>
             )}
 
@@ -94,7 +96,7 @@ const QueryBuilder: React.FC<Props> = ({ fields, onSearch }) => {
               })}
             >
               {fields.map(f => (
-                <option key={f.name} value={f.name}>{f.label}</option>
+                <option key={f.name} value={f.name}>{t(f.label)}</option>
               ))}
             </select>
 
@@ -123,7 +125,7 @@ const QueryBuilder: React.FC<Props> = ({ fields, onSearch }) => {
                       updateCriterion(criterion.id, { value: val });
                     }}
                   >
-                    <option value="">-- Choisir --</option>
+                    <option value="">{t('-- Choisir --')}</option>
                     {options.map(opt => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
@@ -135,9 +137,9 @@ const QueryBuilder: React.FC<Props> = ({ fields, onSearch }) => {
                       value: e.target.value === 'true' 
                     })}
                   >
-                    <option value="">-- Choisir --</option>
-                    <option value="true">Oui</option>
-                    <option value="false">Non</option>
+                    <option value="">{t('-- Choisir --')}</option>
+                    <option value="true">{t('Oui')}</option>
+                    <option value="false">{t('Non')}</option>
                   </select>
                 ) : (
                   <input
@@ -146,7 +148,7 @@ const QueryBuilder: React.FC<Props> = ({ fields, onSearch }) => {
                     onChange={(e) => updateCriterion(criterion.id, { 
                       value: fieldType === 'number' ? parseFloat(e.target.value) || 0 : e.target.value 
                     })}
-                    placeholder="Valeur..."
+                    placeholder={t('Valeur...')}
                     step={fieldType === 'number' ? 'any' : undefined}
                   />
                 )}
@@ -158,7 +160,7 @@ const QueryBuilder: React.FC<Props> = ({ fields, onSearch }) => {
                     onChange={(e) => updateCriterion(criterion.id, { 
                       value2: fieldType === 'number' ? parseFloat(e.target.value) || 0 : e.target.value 
                     })}
-                    placeholder="Valeur 2..."
+                    placeholder={t('Valeur 2...')}
                     step="any"
                   />
                 )}
@@ -169,7 +171,7 @@ const QueryBuilder: React.FC<Props> = ({ fields, onSearch }) => {
               <button 
                 className="btn-remove"
                 onClick={() => removeCriterion(criterion.id)}
-                title="Supprimer ce critère"
+                title={t('Supprimer ce critère')}
               >
                 ✕
               </button>
@@ -179,9 +181,9 @@ const QueryBuilder: React.FC<Props> = ({ fields, onSearch }) => {
       })}
 
       <div className="query-actions">
-        <button className="btn btn-add" onClick={addCriterion}>+ Ajouter un critère</button>
-        <button className="btn btn-primary" onClick={handleSearch}>🔍 Rechercher</button>
-        <button className="btn btn-secondary" onClick={handleReset}>↺ Réinitialiser</button>
+        <button className="btn btn-add" onClick={addCriterion}>{t('+ Ajouter un critère')}</button>
+        <button className="btn btn-primary" onClick={handleSearch}>{t('🔍 Rechercher')}</button>
+        <button className="btn btn-secondary" onClick={handleReset}>{t('↺ Réinitialiser')}</button>
       </div>
     </div>
   );
