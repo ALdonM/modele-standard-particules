@@ -1,20 +1,16 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useUser } from '@clerk/clerk-react';
+import { useLang } from '../i18n';
 import { ENTITY_CONFIGS, EntityType, FilterCriterion } from '../types';
 import { api } from '../api';
 import QueryBuilder from './QueryBuilder';
 
 const formatSpin = (val: any) => {
   if (val === null || val === undefined) return '—';
-  if (val === 0.5) return '1/2';
-  if (val === 1.5) return '3/2';
-  if (val === 2.5) return '5/2';
-  if (val === 3) return '3';
-  if (val === 2) return '2';
-  if (val === 1) return '1';
-  if (val === 0) return '0';
-  return String(val);
+  const n = Number(val);
+  if (Number.isNaN(n)) return String(val);
+  if (Number.isInteger(n)) return String(n);
+  return `${Math.round(n * 2)}/2`;
 };
 
 const formatCharge = (val: any) => {
@@ -32,7 +28,7 @@ const EntityList: React.FC = () => {
   const { entity } = useParams<{ entity: EntityType }>();
   const navigate = useNavigate();
   const config = entity ? ENTITY_CONFIGS[entity] : null;
-  const { isSignedIn } = useUser();
+  const { t, nom, lang } = useLang();
 
   const [data, setData] = useState<any[]>([]);
   const [filteredData, setFilteredData] = useState<any[]>([]);
@@ -60,8 +56,8 @@ const EntityList: React.FC = () => {
       })
       .catch((err: any) => {
         setError(err.response?.status === 404 
-          ? 'Endpoint non encore implemente' 
-          : 'Erreur de connexion a l\'API (cold start possible)'
+          ? t('Endpoint non encore implemente') 
+          : t("Erreur de connexion a l'API (cold start possible)")
         );
       })
       .finally(() => setLoading(false));
@@ -195,7 +191,7 @@ const EntityList: React.FC = () => {
     setVisibleColumns(prev => prev.includes(fieldName) ? prev.filter(c => c !== fieldName) : [...prev, fieldName]);
   };
 
-  const getFieldLabel = (name: string) => config?.fields.find(f => f.name === name)?.label || name;
+  const getFieldLabel = (name: string) => t(config?.fields.find(f => f.name === name)?.label || name);
 
   const getIdField = () => {
     if (entity === 'particules') return 'id_particule';
@@ -207,23 +203,16 @@ const EntityList: React.FC = () => {
     return 'id';
   };
 
-  if (!config) return <div className="entity-list"><h2>Entite inconnue</h2></div>;
+  if (!config) return <div className="entity-list"><h2>{t('Entite inconnue')}</h2></div>;
 
   return (
     <div className="entity-list">
-      <button className="back-link" onClick={() => navigate('/')}>← Retour a l'accueil</button>
-      <h2>{config.icon} {config.label}</h2>
+      <button className="back-link" onClick={() => navigate('/')}>{t("← Retour a l'accueil")}</button>
+      <h2>{config.icon} {t(config.label)}</h2>
       
       <div className="list-toolbar">
-        {isSignedIn ? (
-          <button className="btn btn-primary" onClick={() => navigate(`/${entity}/create`)}>
-            + Creer
-          </button>
-        ) : (
-          <span className="login-hint">Connectez-vous pour contribuer</span>
-        )}
         <button className="btn btn-secondary" onClick={() => setShowColumnsPanel(!showColumnsPanel)}>
-          Colonnes
+          {t('Colonnes')}
         </button>
       </div>
 
@@ -235,7 +224,7 @@ const EntityList: React.FC = () => {
               className={`chip ${activeChip === chip ? 'active' : ''}`}
               onClick={() => setFilteredData(applyChip(chip, data))}
             >
-              {chip}
+              {t(chip)}
             </button>
           ))}
         </div>
@@ -243,11 +232,11 @@ const EntityList: React.FC = () => {
 
       {showColumnsPanel && (
         <div className="columns-panel">
-          <strong>Colonnes :</strong>
+          <strong>{t('Colonnes :')}</strong>
           {config.fields.map(f => (
             <label key={f.name} className="column-checkbox">
               <input type="checkbox" checked={visibleColumns.includes(f.name)} onChange={() => toggleColumn(f.name)} />
-              {f.label}
+              {t(f.label)}
             </label>
           ))}
         </div>
@@ -255,12 +244,14 @@ const EntityList: React.FC = () => {
 
       <QueryBuilder fields={config.fields} onSearch={handleSearch} />
 
-      {loading && <p>Chargement...</p>}
+      {loading && <p>{t('Chargement...')}</p>}
       {error && <p className="error-msg">{error}</p>}
 
       <div className="results-info">
-        {sortedData.length} resultat{sortedData.length > 1 ? 's' : ''}
-        {sortConfig && ` • Trie par ${getFieldLabel(sortConfig.key)} (${sortConfig.direction === 'asc' ? 'croissant' : 'decroissant'})`}
+        {sortedData.length} {lang === 'en' ? (sortedData.length > 1 ? 'results' : 'result') : (sortedData.length > 1 ? 'resultats' : 'resultat')}
+        {sortConfig && (lang === 'en'
+          ? ` • Sorted by ${getFieldLabel(sortConfig.key)} (${sortConfig.direction === 'asc' ? 'ascending' : 'descending'})`
+          : ` • Trie par ${getFieldLabel(sortConfig.key)} (${sortConfig.direction === 'asc' ? 'croissant' : 'decroissant'})`)}
       </div>
 
       <div
@@ -280,7 +271,7 @@ const EntityList: React.FC = () => {
         <table className="data-table">
           <thead>
             <tr>
-              <th>Actions</th>
+              <th>{t('Actions')}</th>
               {config.fields.filter(f => visibleColumns.includes(f.name)).map(f => (
                 <th key={`h-${f.name}`} onClick={() => handleSort(f.name)}>
                   {getFieldLabel(f.name)}
@@ -292,27 +283,21 @@ const EntityList: React.FC = () => {
           <tbody>
             {sortedData.length === 0 ? (
               <tr><td colSpan={Math.max(visibleColumns.length + 1, 1)} className="no-data">
-                {data.length === 0 && !loading ? 'Aucune donnee (API en cours de reveil ?)' : 'Aucune donnee'}
+                {data.length === 0 && !loading ? t('Aucune donnee (API en cours de reveil ?)') : t('Aucune donnee')}
               </td></tr>
             ) : (
               sortedData.map((item: any) => (
                 <React.Fragment key={item[getIdField()]}>
                   <tr>
                     <td className="actions-cell">
-                      <button className="btn-icon" onClick={() => toggleReferences(item[getIdField()])} title="Liens">
+                      <button className="btn-icon" onClick={() => toggleReferences(item[getIdField()])} title={t('Liens')}>
                         {expandedRows.has(item[getIdField()]) ? '▼' : '🔗'}
                       </button>
-                      {isSignedIn && (
-                        <>
-                          <button className="btn-icon" onClick={() => navigate(`/${entity}/edit/${item[getIdField()]}`)} title="Modifier">✏️</button>
-                          <button className="btn-icon btn-danger" onClick={() => alert('Suppression a implementer')} title="Supprimer">🗑️</button>
-                        </>
-                      )}
                     </td>
                     {config.fields.filter(f => visibleColumns.includes(f.name)).map(f => (
                       <td key={f.name}>
                         {f.type === 'boolean' 
-                          ? (item[f.name] ? 'Oui' : 'Non')
+                          ? (item[f.name] ? t('Oui') : t('Non'))
                           : f.type === 'link'
                             ? (item[f.name]
                                 ? <a href={item[f.name]} target="_blank" rel="noopener noreferrer" className="ref-badge">📘 PDG</a>
@@ -320,7 +305,7 @@ const EntityList: React.FC = () => {
                           : entity === 'particules' && f.name === 'nom_particule'
                             ? <a href={`/particules/fiche/${item.id_particule}`}
                                  onClick={(ev) => { ev.preventDefault(); navigate(`/particules/fiche/${item.id_particule}`); }}
-                                 style={{ color: '#1565c0', textDecoration: 'none', fontWeight: 500 }}>{item[f.name]}</a>
+                                 style={{ color: '#1565c0', textDecoration: 'none', fontWeight: 500 }}>{nom(item[f.name])}</a>
                           : f.name === 'spin'
                             ? formatSpin(item[f.name])
                           : f.name === 'masse_mev' && item[f.name] !== null && item[f.name] !== undefined
@@ -339,10 +324,10 @@ const EntityList: React.FC = () => {
                       <td colSpan={Math.max(visibleColumns.length + 1, 1)}>
                         <div className="reference-panel">
                           {loadingRefs[item[getIdField()]] ? (
-                            <span>Chargement...</span>
+                            <span>{t('Chargement...')}</span>
                           ) : (
                             <>
-                              <strong>Liens externes :</strong>
+                              <strong>{t('Liens externes :')}</strong>
                               {rowReferences[item[getIdField()]]?.length > 0 ? (
                                 <div className="reference-links">
                                   {rowReferences[item[getIdField()]].map((ref: any) => (
@@ -352,7 +337,7 @@ const EntityList: React.FC = () => {
                                   ))}
                                 </div>
                               ) : (
-                                <span className="no-ref">Aucun lien externe</span>
+                                <span className="no-ref">{t('Aucun lien externe')}</span>
                               )}
                             </>
                           )}
