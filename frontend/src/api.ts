@@ -11,7 +11,6 @@ export const api = axios.create({
 // Particules
 export const getParticules = () => api.get('/particules');
 export const getParticule = (id: number) => api.get(`/particules/${id}`);
-export const createParticule = (data: any) => api.post('/particules', data);
 
 // Groupes & Interactions
 export const getGroupes = () => api.get('/groupes');
