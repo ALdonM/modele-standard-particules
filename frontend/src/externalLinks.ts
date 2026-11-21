@@ -8,6 +8,11 @@ const NOM_EN: Record<string, string> = {
   'neutrino électron': 'electron neutrino', 'neutrino muon': 'muon neutrino', 'neutrino tau': 'tau neutrino',
   'photon': 'photon', 'gluon': 'gluon', 'boson Z': 'Z boson', 'boson W': 'W boson',
   'boson de Higgs': 'Higgs boson', 'proton': 'proton', 'neutron': 'neutron', 'graviton': 'graviton',
+  'positron': 'positron', 'antimuon': 'antimuon', 'antitau': 'antitau',
+  'antineutrino électron': 'electron antineutrino', 'antineutrino muon': 'muon antineutrino', 'antineutrino tau': 'tau antineutrino',
+  'antiquark up': 'up antiquark', 'antiquark down': 'down antiquark', 'antiquark charm': 'charm antiquark',
+  'antiquark strange': 'strange antiquark', 'antiquark top': 'top antiquark', 'antiquark bottom': 'bottom antiquark',
+  'antiproton': 'antiproton', 'antineutron': 'antineutron', 'boson W+': 'W+ boson', 'boson W-': 'W- boson',
 };
 
 const sansAccents = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '');
