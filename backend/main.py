@@ -27,7 +27,7 @@ if DATABASE_URL.startswith("postgres://"):
 engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_recycle=300)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-app = FastAPI(title="SG-MSP API", version="0.4.1")
+app = FastAPI(title="SG-MSP API", version="0.4.2")
 
 app.add_middleware(
     CORSMiddleware,
@@ -253,7 +253,7 @@ def get_fiche(id_particule: int, db: Session = Depends(get_db)):
     references = db.execute(
         text(
             """
-            SELECT id_reference, source, url, type_contenu, fiabilite
+            SELECT id_reference, source, url, type_contenu, fiabilite, libelle
             FROM reference_externe
             WHERE entite_cible = 'PARTICULE' AND id_cible = :id
             ORDER BY source
@@ -498,7 +498,7 @@ def get_references(entite_cible: str, id_cible: int, db: Session = Depends(get_d
     rows = db.execute(
         text(
             """
-            SELECT id_reference, source, url, type_contenu, fiabilite, date_acces
+            SELECT id_reference, source, url, type_contenu, fiabilite, date_acces, libelle
             FROM reference_externe
             WHERE entite_cible = :entite AND id_cible = :id
             ORDER BY source
