@@ -26,3 +26,26 @@ export const inspireRevues = (terme: string) =>
 // Tous types de documents, les plus cités d'abord
 export const inspireRecherche = (terme: string) =>
   `https://inspirehep.net/literature?sort=mostcited&size=25&page=1&q=${encodeURIComponent(terme)}`;
+
+// Termes anglais de recherche INSPIRE pour les autres entités (clés = valeurs stockées en base)
+const TERMES_ENTITE: Record<string, string> = {
+  // Interactions
+  'Interaction forte': 'strong interaction', 'Interaction électromagnétique': 'electromagnetic interaction',
+  'Interaction faible': 'weak interaction', 'Interaction gravitationnelle': 'gravity',
+  // Groupes
+  'quark': 'quark', 'lepton': 'lepton', 'boson_jauge': 'gauge boson', 'boson_higgs': 'Higgs boson', 'hadron': 'hadron',
+  // Propriétés
+  'Charge electrique': 'electric charge', 'Spin': 'spin', 'Nombre baryonique': 'baryon number',
+  'Nombre leptonique': 'lepton number', 'Etrangete': 'strangeness', 'Charme': 'charm', 'Beaute': 'beauty',
+  'Saveur': 'flavor', 'Couleur': 'color', 'Isospin': 'isospin', 'Parite': 'parity', 'Moment magnetique': 'magnetic moment',
+  // Règles
+  'nombre_baryonique': 'baryon number', 'nombre_leptonique': 'lepton number', 'charge_electrique': 'conservation laws',
+  'energie': 'conservation laws', 'impulsion': 'conservation laws', 'parite': 'parity violation',
+  // Processus
+  'Desintegration beta-': 'beta decay', 'Desintegration beta+': 'beta decay', 'Capture electronique': 'electron capture',
+  'Annihilation e+e-': 'electron-positron annihilation', 'Creation de paires': 'pair production',
+  'Diffusion elastique': 'elastic scattering', 'Desintegration alpha': 'alpha decay', 'Fusion nucleaire': 'nuclear fusion',
+  'Desintegration hadronique': 'hadronic decay', 'Oscillation neutrino': 'neutrino oscillation',
+};
+
+export const termeInspireEntite = (nom: string): string | undefined => TERMES_ENTITE[nom];
