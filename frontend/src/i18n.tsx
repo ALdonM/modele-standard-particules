@@ -32,7 +32,7 @@ const EN: Record<string, string> = {
   'Rechercher dans la littérature (en anglais) : ex. Higgs boson mass': 'Search the literature, e.g. Higgs boson mass',
   '🔎 Chercher sur INSPIRE': '🔎 Search on INSPIRE',
   // Liste
-  "← Retour a l'accueil": '← Back to home', 'Colonnes': 'Columns', 'Colonnes :': 'Columns:',
+  "← Retour à l'accueil": '← Back to home', 'Colonnes': 'Columns', 'Colonnes :': 'Columns:',
   'Chargement...': 'Loading...', 'Entite inconnue': 'Unknown category',
   'Actions': 'Actions', 'Liens': 'Links', 'Oui': 'Yes', 'Non': 'No',
   'Aucune donnee': 'No data', 'Aucune donnee (API en cours de reveil ?)': 'No data (the server may be waking up)',
@@ -58,6 +58,28 @@ const EN: Record<string, string> = {
   "Tous les articles, les plus cités d'abord": 'All papers, most cited first',
   // Groupes
   'quark': 'quark', 'lepton': 'lepton', 'boson_jauge': 'gauge boson', 'boson_higgs': 'Higgs boson', 'hadron': 'hadron',
+  // Particules concernées
+  'Particules concernées': 'Particles involved', 'Médiateur(s) :': 'Mediator(s):',
+  'Toutes les particules': 'All particles', 'hypothétique': 'hypothetical', 'réduire': 'collapse', 'autres': 'more',
+  // Contenu de la base (interactions, groupes, propriétés, règles, processus)
+  'Interaction forte': 'Strong interaction', 'Interaction électromagnétique': 'Electromagnetic interaction',
+  'Interaction faible': 'Weak interaction', 'Interaction gravitationnelle': 'Gravitational interaction',
+  'Fermions fondamentaux de charge fractionnaire': 'Fundamental fermions with fractional charge',
+  'Fermions fondamentaux (chargés et neutrinos)': 'Fundamental fermions (charged leptons and neutrinos)',
+  'Bosons vecteurs médiateurs des interactions': 'Vector bosons that mediate the interactions',
+  'Boson scalaire responsable de la masse': 'Scalar boson responsible for mass',
+  'Particules composites de quarks et gluons': 'Composite particles made of quarks and gluons',
+  'Charge electrique': 'Electric charge', 'Nombre baryonique': 'Baryon number',
+  'Nombre leptonique': 'Lepton number', 'Etrangete': 'Strangeness', 'Charme': 'Charm', 'Beaute': 'Beauty',
+  'Saveur': 'Flavour', 'Couleur': 'Colour', 'Isospin': 'Isospin', 'Parite': 'Parity', 'Moment magnetique': 'Magnetic moment',
+  'scalaire': 'scalar', 'vecteur': 'vector', 'discret': 'discrete',
+  'nombre_baryonique': 'Baryon number', 'nombre_leptonique': 'Lepton number', 'charge_electrique': 'Electric charge',
+  'energie': 'Energy', 'impulsion': 'Momentum', 'parite': 'Parity',
+  'Desintegration beta-': 'Beta-minus decay', 'Desintegration beta+': 'Beta-plus decay', 'Capture electronique': 'Electron capture',
+  'Annihilation e+e-': 'e+e- annihilation', 'Creation de paires': 'Pair production', 'Diffusion elastique': 'Elastic scattering',
+  'Desintegration alpha': 'Alpha decay', 'Fusion nucleaire': 'Nuclear fusion', 'Desintegration hadronique': 'Hadronic decay',
+  'Oscillation neutrino': 'Neutrino oscillation',
+  'desintegration': 'decay', 'annihilation': 'annihilation', 'creation_paires': 'pair production', 'diffusion': 'scattering', 'oscillation': 'oscillation',
   // Langue
   'English': 'English', 'Français': 'Français',
 };
