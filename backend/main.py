@@ -1,5 +1,6 @@
 import logging
 import os
+import unicodedata
 from typing import List, Optional
 
 from fastapi import Depends, FastAPI, HTTPException
@@ -26,7 +27,7 @@ if DATABASE_URL.startswith("postgres://"):
 engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_recycle=300)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-app = FastAPI(title="SG-MSP API", version="0.3.1")
+app = FastAPI(title="SG-MSP API", version="0.4.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -287,6 +288,140 @@ def list_interactions(db: Session = Depends(get_db)):
         text("SELECT * FROM interaction_fondamentale ORDER BY id_interaction")
     ).mappings().all()
     return [dict(r) for r in rows]
+
+
+# --- Particules concernées par chaque entité --------------------------------
+# Les liens sont CALCULÉS à partir des colonnes de la table particule et des
+# groupes (aucun stockage redondant). Seuls les processus lisent une table de
+# liaison (participer), car leur contenu est rédigé à la main.
+_HYPOTHETIQUES = {"graviton"}
+
+
+def _norm(s):
+    s = unicodedata.normalize("NFKD", s or "").encode("ascii", "ignore").decode()
+    return s.lower().replace("_", " ").strip()
+
+
+def _dans_groupe(*noms):
+    liste = ", ".join("'" + n + "'" for n in noms)  # constantes écrites ici, jamais de saisie externe
+    return (
+        "EXISTS (SELECT 1 FROM appartient_groupe ag JOIN groupe g ON g.id_groupe = ag.id_groupe "
+        "WHERE ag.id_particule = p.id_particule AND g.nom_groupe IN (" + liste + "))"
+    )
+
+
+_UNIVERSEL = "UNIVERSEL"  # concerne toutes les particules : on n'affiche pas la liste
+_AUCUNE = "FALSE"         # donnée non disponible
+
+_COND_PROPRIETE = {
+    "masse": "p.masse_mev IS NOT NULL AND p.masse_mev > 0",
+    "charge electrique": "p.charge_e <> 0",
+    "spin": "p.spin IS NOT NULL AND p.spin NOT IN ('?', '')",
+    "nombre baryonique": "p.nombre_baryonique_b <> 0",
+    "nombre leptonique": "p.nombre_leptonique_l <> 0",
+    "etrangete": "p.nombre_etrangete_s <> 0",
+    "charme": "p.nombre_charme_c <> 0",
+    "beaute": "p.nombre_beaute_b <> 0",
+    "isospin": "p.isospin_i IS NOT NULL AND p.isospin_i NOT IN ('?', '')",
+    "parite": "p.parite_p IS NOT NULL AND p.parite_p NOT IN ('?', '')",
+    "saveur": _dans_groupe("quark", "lepton"),
+    "couleur": "(" + _dans_groupe("quark") + " OR p.nom_particule = 'gluon')",
+}
+
+_COND_REGLE = {
+    "nombre baryonique": _COND_PROPRIETE["nombre baryonique"],
+    "nombre leptonique": _COND_PROPRIETE["nombre leptonique"],
+    "parite": _COND_PROPRIETE["parite"],
+    "charge electrique": _UNIVERSEL,
+    "energie": _UNIVERSEL,
+    "impulsion": _UNIVERSEL,
+}
+
+_MEDIATEUR = (
+    "EXISTS (SELECT 1 FROM boson_mediateur b WHERE b.id_boson = p.id_particule "
+    "AND b.id_interaction_mediee = :cible)"
+)
+
+
+def _cond_interaction(nom):
+    n = _norm(nom)
+    if "gravit" in n:
+        return _UNIVERSEL
+    if "electromag" in n:
+        return "p.charge_e <> 0 OR " + _dans_groupe("hadron")
+    if "faible" in n:
+        return _dans_groupe("quark", "lepton", "hadron", "boson_higgs") + " OR " + _MEDIATEUR
+    if "forte" in n:
+        return _dans_groupe("quark", "hadron") + " OR " + _MEDIATEUR
+    return _AUCUNE
+
+
+def _item(r, role=None):
+    d = {"id": r["id_particule"], "nom": r["nom_particule"], "symbole": r["symbole"]}
+    if r["nom_particule"] in _HYPOTHETIQUES:
+        d["hypothetique"] = True
+    if role:
+        d["role"] = role
+    return d
+
+
+def _liste(db, cond, cible=None):
+    rows = db.execute(
+        text("SELECT p.id_particule, p.nom_particule, p.symbole FROM particule p "
+             "WHERE p.est_actif AND (" + cond + ") ORDER BY p.id_particule"),
+        {"cible": cible} if ":cible" in cond else {},
+    ).mappings().all()
+    return [_item(r) for r in rows]
+
+
+def _resultat(db, cond, total, cible=None):
+    if cond == _UNIVERSEL:
+        return {"mode": "toutes", "total": total, "particules": []}
+    items = _liste(db, cond, cible)
+    return {"mode": "liste", "total": len(items), "particules": items}
+
+
+@app.get("/entites/{entite}/particules")
+def particules_par_entite(entite: str, db: Session = Depends(get_db)):
+    """Pour chaque ligne d'une entité (groupes, interactions, proprietes, regles,
+    processus) : les particules concernées. Clé du résultat = identifiant de la ligne."""
+    total = db.execute(text("SELECT count(*) FROM particule WHERE est_actif")).scalar()
+    out = {}
+    if entite == "groupes":
+        for r in db.execute(text("SELECT id_groupe FROM groupe")).mappings().all():
+            cond = ("EXISTS (SELECT 1 FROM appartient_groupe ag WHERE ag.id_particule = p.id_particule "
+                    "AND ag.id_groupe = :cible)")
+            out[str(r["id_groupe"])] = _resultat(db, cond, total, r["id_groupe"])
+    elif entite == "interactions":
+        for r in db.execute(text("SELECT id_interaction, nom_interaction FROM interaction_fondamentale")).mappings().all():
+            res = _resultat(db, _cond_interaction(r["nom_interaction"]), total, r["id_interaction"])
+            med = db.execute(
+                text("SELECT p.id_particule, p.nom_particule, p.symbole FROM boson_mediateur b "
+                     "JOIN particule p ON p.id_particule = b.id_boson "
+                     "WHERE b.id_interaction_mediee = :i ORDER BY p.id_particule"),
+                {"i": r["id_interaction"]},
+            ).mappings().all()
+            res["mediateurs"] = [_item(m) for m in med]
+            out[str(r["id_interaction"])] = res
+    elif entite == "proprietes":
+        for r in db.execute(text("SELECT id_propriete, nom_propriete FROM propriete_quantique")).mappings().all():
+            out[str(r["id_propriete"])] = _resultat(db, _COND_PROPRIETE.get(_norm(r["nom_propriete"]), _AUCUNE), total)
+    elif entite == "regles":
+        for r in db.execute(text("SELECT id_regle, nom_regle FROM regle_conservation")).mappings().all():
+            out[str(r["id_regle"])] = _resultat(db, _COND_REGLE.get(_norm(r["nom_regle"]), _AUCUNE), total)
+    elif entite == "processus":
+        for r in db.execute(text("SELECT id_processus FROM processus_dynamique")).mappings().all():
+            rows = db.execute(
+                text("SELECT p.id_particule, p.nom_particule, p.symbole, x.role FROM participer x "
+                     "JOIN particule p ON p.id_particule = x.id_particule WHERE x.id_processus = :i "
+                     "ORDER BY x.ordre_temporal NULLS LAST, x.role, p.id_particule"),
+                {"i": r["id_processus"]},
+            ).mappings().all()
+            items = [_item(m, m["role"]) for m in rows]
+            out[str(r["id_processus"])] = {"mode": "liste", "total": len(items), "particules": items}
+    else:
+        raise HTTPException(status_code=404, detail="Entité inconnue")
+    return out
 
 
 @app.get("/references")
