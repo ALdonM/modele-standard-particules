@@ -27,7 +27,7 @@ if DATABASE_URL.startswith("postgres://"):
 engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_recycle=300)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-app = FastAPI(title="SG-MSP API", version="0.4.0")
+app = FastAPI(title="SG-MSP API", version="0.4.1")
 
 app.add_middleware(
     CORSMiddleware,
@@ -290,10 +290,11 @@ def list_interactions(db: Session = Depends(get_db)):
     return [dict(r) for r in rows]
 
 
-# --- Particules concernées par chaque entité --------------------------------
+# --- Particules (ou processus) concernés par chaque entité -------------------
 # Les liens sont CALCULÉS à partir des colonnes de la table particule et des
-# groupes (aucun stockage redondant). Seuls les processus lisent une table de
-# liaison (participer), car leur contenu est rédigé à la main.
+# groupes (aucun stockage redondant). Les processus lisent participer (exemple
+# représentatif rédigé à la main) et les règles lisent conserve. Chaque résultat
+# porte son critère en français et en anglais, affiché sous la cellule.
 _HYPOTHETIQUES = {"graviton"}
 
 
@@ -310,32 +311,56 @@ def _dans_groupe(*noms):
     )
 
 
-_UNIVERSEL = "UNIVERSEL"  # concerne toutes les particules : on n'affiche pas la liste
+_UNIVERSEL = "UNIVERSEL"  # concerne toutes les particules : pas de liste
 _AUCUNE = "FALSE"         # donnée non disponible
 
-_COND_PROPRIETE = {
-    "masse": "p.masse_mev IS NOT NULL AND p.masse_mev > 0",
-    "charge electrique": "p.charge_e <> 0",
-    "spin": "p.spin IS NOT NULL AND p.spin NOT IN ('?', '')",
-    "nombre baryonique": "p.nombre_baryonique_b <> 0",
-    "nombre leptonique": "p.nombre_leptonique_l <> 0",
-    "etrangete": "p.nombre_etrangete_s <> 0",
-    "charme": "p.nombre_charme_c <> 0",
-    "beaute": "p.nombre_beaute_b <> 0",
-    "isospin": "p.isospin_i IS NOT NULL AND p.isospin_i NOT IN ('?', '')",
-    "parite": "p.parite_p IS NOT NULL AND p.parite_p NOT IN ('?', '')",
-    "saveur": _dans_groupe("quark", "lepton"),
-    "couleur": "(" + _dans_groupe("quark") + " OR p.nom_particule = 'gluon')",
+# nom normalisé -> (condition SQL, mode, critère FR, critère EN)
+# mode "presque" : presque toutes les particules, on affiche seulement le nombre
+_PROPRIETE = {
+    "masse": ("p.masse_mev IS NOT NULL AND p.masse_mev > 0", "presque",
+              "Particules de masse non nulle (presque toutes).",
+              "Particles with non-zero mass (almost all)."),
+    "charge electrique": ("p.charge_e <> 0", "liste",
+              "Particules de charge électrique non nulle.",
+              "Particles with non-zero electric charge."),
+    "spin": ("p.spin IS NOT NULL AND p.spin NOT IN ('?', '')", "presque",
+              "Particules dont le spin est renseigné (presque toutes).",
+              "Particles whose spin is given (almost all)."),
+    "nombre baryonique": ("p.nombre_baryonique_b <> 0", "liste",
+              "Particules de nombre baryonique B non nul.",
+              "Particles with non-zero baryon number B."),
+    "nombre leptonique": ("p.nombre_leptonique_l <> 0", "liste",
+              "Particules de nombre leptonique L non nul.",
+              "Particles with non-zero lepton number L."),
+    "etrangete": ("p.nombre_etrangete_s <> 0", "liste",
+              "Particules d'étrangeté S non nulle.",
+              "Particles with non-zero strangeness S."),
+    "charme": ("p.nombre_charme_c <> 0", "liste",
+              "Particules de charme C non nul.",
+              "Particles with non-zero charm C."),
+    "beaute": ("p.nombre_beaute_b <> 0", "liste",
+              "Particules de beauté non nulle.",
+              "Particles with non-zero beauty."),
+    "isospin": ("p.isospin_i IS NOT NULL AND p.isospin_i NOT IN ('?', '')", "liste",
+              "Particules dont l'isospin est renseigné (la valeur peut être nulle).",
+              "Particles whose isospin is given (the value may be zero)."),
+    "parite": ("p.parite_p IS NOT NULL AND p.parite_p NOT IN ('?', '')", "liste",
+              "Particules dont la parité P est renseignée.",
+              "Particles whose parity P is given."),
+    "saveur": (_dans_groupe("quark", "lepton"), "liste",
+              "Quarks et leptons.", "Quarks and leptons."),
+    "couleur": ("(" + _dans_groupe("quark") + " OR p.nom_particule = 'gluon')", "liste",
+              "Quarks et gluon (les hadrons sont de couleur neutre).",
+              "Quarks and gluon (hadrons are colour-neutral)."),
 }
+_PROPRIETE_VIDE = (_AUCUNE, "liste", "Donnée non disponible dans la base.", "Data not available in the database.")
 
-_COND_REGLE = {
-    "nombre baryonique": _COND_PROPRIETE["nombre baryonique"],
-    "nombre leptonique": _COND_PROPRIETE["nombre leptonique"],
-    "parite": _COND_PROPRIETE["parite"],
-    "charge electrique": _UNIVERSEL,
-    "energie": _UNIVERSEL,
-    "impulsion": _UNIVERSEL,
+# nom normalisé -> (critère FR, critère EN) ; la liste vient de la table conserve
+_REGLE = {
+    "parite": ("Processus qui conservent la parité (électromagnétiques et forts) ; elle est violée par l'interaction faible.",
+               "Processes that conserve parity (electromagnetic and strong); it is violated by the weak interaction."),
 }
+_REGLE_DEFAUT = ("Processus qui respectent cette règle.", "Processes that obey this rule.")
 
 _MEDIATEUR = (
     "EXISTS (SELECT 1 FROM boson_mediateur b WHERE b.id_boson = p.id_particule "
@@ -343,17 +368,25 @@ _MEDIATEUR = (
 )
 
 
-def _cond_interaction(nom):
+def _interaction(nom):
+    """(condition, critère FR, critère EN) d'une interaction, d'après son nom."""
     n = _norm(nom)
     if "gravit" in n:
-        return _UNIVERSEL
+        return (_UNIVERSEL, "Toutes les particules : la gravitation se couple à l'énergie.",
+                "All particles: gravity couples to energy.")
     if "electromag" in n:
-        return "p.charge_e <> 0 OR " + _dans_groupe("hadron")
+        return ("p.charge_e <> 0", "Particules de charge électrique non nulle. Les hadrons neutres (ex. le neutron) "
+                "interagissent aussi, via leurs constituants.",
+                "Particles with non-zero electric charge. Neutral hadrons (e.g. the neutron) also interact, "
+                "through their constituents.")
     if "faible" in n:
-        return _dans_groupe("quark", "lepton", "hadron", "boson_higgs") + " OR " + _MEDIATEUR
+        return (_dans_groupe("quark", "lepton", "hadron", "boson_higgs") + " OR " + _MEDIATEUR,
+                "Quarks, leptons, hadrons, bosons W et Z et boson de Higgs (photon, gluon et graviton exclus).",
+                "Quarks, leptons, hadrons, W and Z bosons and the Higgs boson (photon, gluon and graviton excluded).")
     if "forte" in n:
-        return _dans_groupe("quark", "hadron") + " OR " + _MEDIATEUR
-    return _AUCUNE
+        return (_dans_groupe("quark", "hadron") + " OR " + _MEDIATEUR,
+                "Quarks, hadrons et gluon.", "Quarks, hadrons and gluon.")
+    return (_AUCUNE, "", "")
 
 
 def _item(r, role=None):
@@ -374,27 +407,34 @@ def _liste(db, cond, cible=None):
     return [_item(r) for r in rows]
 
 
-def _resultat(db, cond, total, cible=None):
+def _resultat(db, cond, total, fr, en, mode="liste", cible=None):
+    base = {"critere_fr": fr, "critere_en": en, "sur": total}
     if cond == _UNIVERSEL:
-        return {"mode": "toutes", "total": total, "particules": []}
+        return {**base, "mode": "toutes", "total": total, "particules": []}
     items = _liste(db, cond, cible)
-    return {"mode": "liste", "total": len(items), "particules": items}
+    if mode == "presque":
+        return {**base, "mode": "presque", "total": len(items), "particules": []}
+    return {**base, "mode": "liste", "total": len(items), "particules": items}
 
 
 @app.get("/entites/{entite}/particules")
 def particules_par_entite(entite: str, db: Session = Depends(get_db)):
     """Pour chaque ligne d'une entité (groupes, interactions, proprietes, regles,
-    processus) : les particules concernées. Clé du résultat = identifiant de la ligne."""
+    processus) : les particules concernées (processus concernés pour les règles).
+    Clé du résultat = identifiant de la ligne."""
     total = db.execute(text("SELECT count(*) FROM particule WHERE est_actif")).scalar()
     out = {}
     if entite == "groupes":
+        cond = ("EXISTS (SELECT 1 FROM appartient_groupe ag WHERE ag.id_particule = p.id_particule "
+                "AND ag.id_groupe = :cible)")
         for r in db.execute(text("SELECT id_groupe FROM groupe")).mappings().all():
-            cond = ("EXISTS (SELECT 1 FROM appartient_groupe ag WHERE ag.id_particule = p.id_particule "
-                    "AND ag.id_groupe = :cible)")
-            out[str(r["id_groupe"])] = _resultat(db, cond, total, r["id_groupe"])
+            out[str(r["id_groupe"])] = _resultat(
+                db, cond, total, "Particules appartenant à ce groupe.", "Particles belonging to this group.",
+                cible=r["id_groupe"])
     elif entite == "interactions":
         for r in db.execute(text("SELECT id_interaction, nom_interaction FROM interaction_fondamentale")).mappings().all():
-            res = _resultat(db, _cond_interaction(r["nom_interaction"]), total, r["id_interaction"])
+            cond, fr, en = _interaction(r["nom_interaction"])
+            res = _resultat(db, cond, total, fr, en, cible=r["id_interaction"])
             med = db.execute(
                 text("SELECT p.id_particule, p.nom_particule, p.symbole FROM boson_mediateur b "
                      "JOIN particule p ON p.id_particule = b.id_boson "
@@ -405,10 +445,24 @@ def particules_par_entite(entite: str, db: Session = Depends(get_db)):
             out[str(r["id_interaction"])] = res
     elif entite == "proprietes":
         for r in db.execute(text("SELECT id_propriete, nom_propriete FROM propriete_quantique")).mappings().all():
-            out[str(r["id_propriete"])] = _resultat(db, _COND_PROPRIETE.get(_norm(r["nom_propriete"]), _AUCUNE), total)
+            cond, mode, fr, en = _PROPRIETE.get(_norm(r["nom_propriete"]), _PROPRIETE_VIDE)
+            out[str(r["id_propriete"])] = _resultat(db, cond, total, fr, en, mode)
     elif entite == "regles":
+        nb_proc = db.execute(text("SELECT count(*) FROM processus_dynamique")).scalar()
         for r in db.execute(text("SELECT id_regle, nom_regle FROM regle_conservation")).mappings().all():
-            out[str(r["id_regle"])] = _resultat(db, _COND_REGLE.get(_norm(r["nom_regle"]), _AUCUNE), total)
+            procs = db.execute(
+                text("SELECT d.id_processus, d.nom_processus FROM conserve c "
+                     "JOIN processus_dynamique d ON d.id_processus = c.id_processus "
+                     "WHERE c.id_regle = :i ORDER BY d.id_processus"),
+                {"i": r["id_regle"]},
+            ).mappings().all()
+            fr, en = _REGLE.get(_norm(r["nom_regle"]), _REGLE_DEFAUT)
+            out[str(r["id_regle"])] = {
+                "mode": "tous" if nb_proc and len(procs) == nb_proc else "liste",
+                "total": len(procs),
+                "processus": [{"id": x["id_processus"], "nom": x["nom_processus"]} for x in procs],
+                "critere_fr": fr, "critere_en": en,
+            }
     elif entite == "processus":
         for r in db.execute(text("SELECT id_processus FROM processus_dynamique")).mappings().all():
             rows = db.execute(
@@ -417,8 +471,23 @@ def particules_par_entite(entite: str, db: Session = Depends(get_db)):
                      "ORDER BY x.ordre_temporal NULLS LAST, x.role, p.id_particule"),
                 {"i": r["id_processus"]},
             ).mappings().all()
+            regles = db.execute(
+                text("SELECT g.id_regle, g.nom_regle FROM conserve c "
+                     "JOIN regle_conservation g ON g.id_regle = c.id_regle "
+                     "WHERE c.id_processus = :i ORDER BY g.id_regle"),
+                {"i": r["id_processus"]},
+            ).mappings().all()
             items = [_item(m, m["role"]) for m in rows]
-            out[str(r["id_processus"])] = {"mode": "liste", "total": len(items), "particules": items}
+            if items:
+                fr, en = ("Réaction type donnée en exemple (liste non exhaustive).",
+                          "Typical reaction given as an example (not exhaustive).")
+            else:
+                fr, en = ("Aucune réaction type renseignée dans la base.", "No typical reaction in the database.")
+            out[str(r["id_processus"])] = {
+                "mode": "liste", "total": len(items), "particules": items,
+                "regles": [{"id": g["id_regle"], "nom": g["nom_regle"]} for g in regles],
+                "critere_fr": fr, "critere_en": en,
+            }
     else:
         raise HTTPException(status_code=404, detail="Entité inconnue")
     return out
