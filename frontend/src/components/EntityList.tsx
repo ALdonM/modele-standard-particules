@@ -4,6 +4,7 @@ import { useLang } from '../i18n';
 import { ENTITY_CONFIGS, EntityType, FilterCriterion } from '../types';
 import { api } from '../api';
 import QueryBuilder from './QueryBuilder';
+import { inspireRevues, inspireRecherche, termeInspireEntite } from '../externalLinks';
 
 const formatSpin = (val: any) => {
   if (val === null || val === undefined) return '—';
@@ -219,6 +220,23 @@ const EntityList: React.FC = () => {
     if (entity === 'regles') return 'id_regle';
     return 'id';
   };
+
+  // Terme de recherche INSPIRE d'une ligne (interactions, groupes, propriétés, règles, processus)
+  const termeEntite = (item: any): string | undefined => {
+    const nomLigne =
+      entity === 'interactions' ? item.nom_interaction :
+      entity === 'groupes' ? item.nom_groupe :
+      entity === 'proprietes' ? item.nom_propriete :
+      entity === 'regles' ? item.nom_regle :
+      entity === 'processus' ? item.nom_processus : undefined;
+    return nomLigne ? termeInspireEntite(nomLigne) : undefined;
+  };
+
+  // Étiquette d'un lien stocké en base : le titre quand il existe
+  const libelleRef = (ref: any) =>
+    ref.libelle
+      ? (ref.source === 'pdg' ? `📘 PDG : ${ref.libelle}` : `🎓 ${ref.libelle}`)
+      : (ref.source === 'pdg' ? '📘 PDG' : ref.source);
 
   const lienParticule = (p: any, i: number) => (
     <a key={`${p.id}-${p.role || ''}-${i}`} href={`/particules/fiche/${p.id}`}
@@ -474,14 +492,25 @@ const EntityList: React.FC = () => {
                           ) : (
                             <>
                               <strong>{t('Liens externes :')}</strong>
-                              {rowReferences[item[getIdField()]]?.length > 0 ? (
-                                <div className="reference-links">
-                                  {rowReferences[item[getIdField()]].map((ref: any) => (
-                                    <a key={ref.id_reference} href={ref.url} target="_blank" rel="noopener noreferrer" className="ref-badge">
-                                      {ref.source === 'pdg' ? '📘 PDG' : ref.source}
-                                    </a>
-                                  ))}
-                                </div>
+                              {(rowReferences[item[getIdField()]]?.length > 0 || termeEntite(item)) ? (
+                                <>
+                                  <div className="reference-links">
+                                    {(rowReferences[item[getIdField()]] || []).map((ref: any) => (
+                                      <a key={ref.id_reference} href={ref.url} target="_blank" rel="noopener noreferrer" className="ref-badge">
+                                        {libelleRef(ref)}
+                                      </a>
+                                    ))}
+                                    {termeEntite(item) && (
+                                      <>
+                                        <a className="ref-badge" href={inspireRevues(termeEntite(item) as string)} target="_blank" rel="noopener noreferrer" title={t('Articles de synthèse les plus cités')}>{t('📚 INSPIRE (revues)')}</a>
+                                        <a className="ref-badge" href={inspireRecherche(termeEntite(item) as string)} target="_blank" rel="noopener noreferrer" title={t("Tous les articles, les plus cités d'abord")}>{t('🔎 INSPIRE (articles)')}</a>
+                                      </>
+                                    )}
+                                  </div>
+                                  {entity !== 'particules' && (
+                                    <div style={{ fontSize: '0.8em', color: '#757575', marginTop: 4 }}>{t('Les sources externes sont en anglais.')}</div>
+                                  )}
+                                </>
                               ) : (
                                 <span className="no-ref">{t('Aucun lien externe')}</span>
                               )}
