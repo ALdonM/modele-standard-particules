@@ -246,6 +246,17 @@ const EntityList: React.FC = () => {
     });
   };
 
+  const critere = (info: any) => {
+    const txt = lang === 'en' ? info.critere_en : info.critere_fr;
+    return txt
+      ? <div key="critere" style={{ fontSize: '0.8em', color: '#757575', marginTop: 4 }}>{txt}</div>
+      : null;
+  };
+
+  // Identifiants techniques de la base (nombre_baryonique, boson_jauge) rendus lisibles par t()
+  const libelleRegle = (n: string) => t(n);
+  const libelleGroupe = (n: string) => t(n);
+
   const renderConcernees = (item: any) => {
     const cle = String(item[getIdField()]);
     const info = concerned[cle];
@@ -260,6 +271,8 @@ const EntityList: React.FC = () => {
     }
     if (info.mode === 'toutes') {
       lignes.push(<div key="all">{t('Toutes les particules')}</div>);
+    } else if (info.mode === 'presque') {
+      lignes.push(<div key="presque">{t('Presque toutes les particules')} ({info.total}/{info.sur})</div>);
     } else if (entity === 'processus') {
       const entrants = info.particules.filter((p: any) => p.role === 'entrant');
       const sortants = info.particules.filter((p: any) => p.role === 'sortant');
@@ -292,11 +305,43 @@ const EntityList: React.FC = () => {
         );
       }
     }
-    if (lignes.length === 0) return '—';
+    if (lignes.length === 0) lignes.push(<div key="vide">—</div>);
+    lignes.push(critere(info));
     return <div style={{ minWidth: 240 }}>{lignes}</div>;
   };
 
-  const colonnesSup = entity !== 'particules' ? 1 : 0;
+  // Règles : les processus qui les respectent
+  const renderProcessus = (item: any) => {
+    const info = concerned[String(item[getIdField()])];
+    if (!info) return loadingConcerned ? '…' : '—';
+    return (
+      <div style={{ minWidth: 240 }}>
+        <div>
+          {info.mode === 'tous'
+            ? t('Tous les processus')
+            : info.processus.length > 0 ? info.processus.map((x: any) => t(x.nom)).join(', ') : '—'}
+        </div>
+        {critere(info)}
+      </div>
+    );
+  };
+
+  // Processus : les règles qu'ils respectent
+  const renderRegles = (item: any) => {
+    const info = concerned[String(item[getIdField()])];
+    if (!info) return loadingConcerned ? '…' : '—';
+    const regles = info.regles || [];
+    return <div style={{ minWidth: 200 }}>{regles.length > 0 ? regles.map((x: any) => libelleRegle(x.nom)).join(', ') : '—'}</div>;
+  };
+
+  const colonnesSup: { label: string; render: (item: any) => React.ReactNode }[] =
+    entity === 'particules' ? [] :
+    entity === 'regles' ? [{ label: 'Processus concernés', render: renderProcessus }] :
+    entity === 'processus' ? [
+      { label: 'Particules concernées', render: renderConcernees },
+      { label: 'Règles respectées', render: renderRegles },
+    ] :
+    [{ label: 'Particules concernées', render: renderConcernees }];
 
   if (!config) return <div className="entity-list"><h2>{t('Entite inconnue')}</h2></div>;
 
@@ -373,12 +418,12 @@ const EntityList: React.FC = () => {
                   {sortConfig?.key === f.name && <span className="sort-indicator">{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>}
                 </th>
               ))}
-              {colonnesSup > 0 && <th>{t('Particules concernées')}</th>}
+              {colonnesSup.map(c => <th key={c.label}>{t(c.label)}</th>)}
             </tr>
           </thead>
           <tbody>
             {sortedData.length === 0 ? (
-              <tr><td colSpan={Math.max(visibleColumns.length + 1 + colonnesSup, 1)} className="no-data">
+              <tr><td colSpan={Math.max(visibleColumns.length + 1 + colonnesSup.length, 1)} className="no-data">
                 {data.length === 0 && !loading ? t('Aucune donnee (API en cours de reveil ?)') : t('Aucune donnee')}
               </td></tr>
             ) : (
@@ -402,6 +447,10 @@ const EntityList: React.FC = () => {
                             ? <a href={`/particules/fiche/${item.id_particule}`}
                                  onClick={(ev) => { ev.preventDefault(); navigate(`/particules/fiche/${item.id_particule}`); }}
                                  style={{ color: '#1565c0', textDecoration: 'none', fontWeight: 500 }}>{nom(item[f.name])}</a>
+                          : entity === 'regles' && f.name === 'nom_regle'
+                            ? libelleRegle(String(item[f.name]))
+                          : entity === 'groupes' && f.name === 'nom_groupe'
+                            ? libelleGroupe(String(item[f.name]))
                           : f.name === 'spin'
                             ? formatSpin(item[f.name])
                           : f.name === 'masse_mev' && item[f.name] !== null && item[f.name] !== undefined
@@ -414,11 +463,11 @@ const EntityList: React.FC = () => {
                         }
                       </td>
                     ))}
-                    {colonnesSup > 0 && <td>{renderConcernees(item)}</td>}
+                    {colonnesSup.map(c => <td key={c.label}>{c.render(item)}</td>)}
                   </tr>
                   {expandedRows.has(item[getIdField()]) && (
                     <tr className="reference-row">
-                      <td colSpan={Math.max(visibleColumns.length + 1 + colonnesSup, 1)}>
+                      <td colSpan={Math.max(visibleColumns.length + 1 + colonnesSup.length, 1)}>
                         <div className="reference-panel">
                           {loadingRefs[item[getIdField()]] ? (
                             <span>{t('Chargement...')}</span>
