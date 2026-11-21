@@ -61,6 +61,8 @@ const EN: Record<string, string> = {
   // Particules concernées
   'Particules concernées': 'Particles involved', 'Médiateur(s) :': 'Mediator(s):',
   'Toutes les particules': 'All particles', 'hypothétique': 'hypothetical', 'réduire': 'collapse', 'autres': 'more',
+  'Presque toutes les particules': 'Almost all particles', 'Tous les processus': 'All processes',
+  'Processus concernés': 'Processes involved', 'Règles respectées': 'Rules obeyed',
   // Contenu de la base (interactions, groupes, propriétés, règles, processus)
   'Interaction forte': 'Strong interaction', 'Interaction électromagnétique': 'Electromagnetic interaction',
   'Interaction faible': 'Weak interaction', 'Interaction gravitationnelle': 'Gravitational interaction',
@@ -82,6 +84,20 @@ const EN: Record<string, string> = {
   'desintegration': 'decay', 'annihilation': 'annihilation', 'creation_paires': 'pair production', 'diffusion': 'scattering', 'oscillation': 'oscillation',
   // Langue
   'English': 'English', 'Français': 'Français',
+};
+
+// Libellés français lisibles pour les identifiants de la base (sans accents ni underscores)
+const FR_AFFICHAGE: Record<string, string> = {
+  'nombre_baryonique': 'Nombre baryonique', 'nombre_leptonique': 'Nombre leptonique', 'charge_electrique': 'Charge électrique',
+  'energie': 'Énergie', 'impulsion': 'Impulsion', 'parite': 'Parité',
+  'Charge electrique': 'Charge électrique', 'Etrangete': 'Étrangeté', 'Beaute': 'Beauté', 'Parite': 'Parité',
+  'Moment magnetique': 'Moment magnétique',
+  'Desintegration beta-': 'Désintégration β⁻', 'Desintegration beta+': 'Désintégration β⁺', 'Capture electronique': 'Capture électronique',
+  'Annihilation e+e-': 'Annihilation e⁺e⁻', 'Creation de paires': 'Création de paires', 'Diffusion elastique': 'Diffusion élastique',
+  'Desintegration alpha': 'Désintégration α', 'Fusion nucleaire': 'Fusion nucléaire', 'Desintegration hadronique': 'Désintégration hadronique',
+  'Oscillation neutrino': 'Oscillation de neutrinos',
+  'desintegration': 'désintégration', 'creation_paires': 'création de paires',
+  'boson_jauge': 'boson de jauge', 'boson_higgs': 'boson de Higgs',
 };
 
 // Noms de particules : la base est en français, on affiche l'anglais si demandé
@@ -118,7 +134,7 @@ export const LangProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try { localStorage.setItem('lang', l); } catch (e) { /* ignoré */ }
   };
   useEffect(() => { document.documentElement.lang = lang; }, [lang]);
-  const t = (s: string) => (lang === 'en' ? EN[s] ?? s : s);
+  const t = (s: string) => (lang === 'en' ? EN[s] ?? s : FR_AFFICHAGE[s] ?? s);
   const nom = (n: string) => (lang === 'en' ? NOM_EN[n] ?? n : n);
   return <LangContext.Provider value={{ lang, setLang, t, nom }}>{children}</LangContext.Provider>;
 };
