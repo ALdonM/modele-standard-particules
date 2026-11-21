@@ -61,6 +61,7 @@ const EN: Record<string, string> = {
   // Particules concernées
   'Particules concernées': 'Particles involved', 'Médiateur(s) :': 'Mediator(s):',
   'Toutes les particules': 'All particles', 'hypothétique': 'hypothetical', 'réduire': 'collapse', 'autres': 'more',
+  'Les sources externes sont en anglais.': 'External sources are in English.',
   'Presque toutes les particules': 'Almost all particles', 'Tous les processus': 'All processes',
   'Processus concernés': 'Processes involved', 'Règles respectées': 'Rules obeyed',
   // Contenu de la base (interactions, groupes, propriétés, règles, processus)
