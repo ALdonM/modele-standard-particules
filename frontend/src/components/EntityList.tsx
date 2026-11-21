@@ -43,6 +43,12 @@ const EntityList: React.FC = () => {
   const [rowReferences, setRowReferences] = useState<Record<number, any[]>>({});
   const [loadingRefs, setLoadingRefs] = useState<Record<number, boolean>>({});
 
+  // Particules concernées par chaque ligne (groupes, interactions, propriétés, règles, processus)
+  const [concerned, setConcerned] = useState<Record<string, any>>({});
+  const [loadingConcerned, setLoadingConcerned] = useState(false);
+  const [openCells, setOpenCells] = useState<Set<string>>(new Set());
+  const MAX_VISIBLES = 8;
+
   // Chargement simple sans useCallback ni useRef
   useEffect(() => {
     if (!config) return;
@@ -62,6 +68,17 @@ const EntityList: React.FC = () => {
       })
       .finally(() => setLoading(false));
   }, [entity, config]);
+
+  useEffect(() => {
+    setConcerned({});
+    setOpenCells(new Set());
+    if (!entity || entity === 'particules') return;
+    setLoadingConcerned(true);
+    api.get(`/entites/${entity}/particules`)
+      .then(r => setConcerned(r.data))
+      .catch(() => setConcerned({}))
+      .finally(() => setLoadingConcerned(false));
+  }, [entity]);
 
   const applyChip = (chip: string, rawData: any[]) => {
     setActiveChip(chip);
@@ -203,11 +220,89 @@ const EntityList: React.FC = () => {
     return 'id';
   };
 
+  const lienParticule = (p: any, i: number) => (
+    <a key={`${p.id}-${p.role || ''}-${i}`} href={`/particules/fiche/${p.id}`}
+       onClick={(ev) => { ev.preventDefault(); navigate(`/particules/fiche/${p.id}`); }}
+       title={p.symbole || ''}
+       style={{ color: '#1565c0', textDecoration: 'none' }}>
+      {nom(p.nom)}{p.hypothetique ? ` (${t('hypothétique')})` : ''}
+    </a>
+  );
+
+  const joindre = (liste: any[], sep: string) => {
+    const out: React.ReactNode[] = [];
+    liste.forEach((p: any, i: number) => {
+      if (i > 0) out.push(<span key={`sep-${i}`}>{sep}</span>);
+      out.push(lienParticule(p, i));
+    });
+    return out;
+  };
+
+  const basculer = (cle: string) => {
+    setOpenCells(prev => {
+      const n = new Set(prev);
+      if (n.has(cle)) n.delete(cle); else n.add(cle);
+      return n;
+    });
+  };
+
+  const renderConcernees = (item: any) => {
+    const cle = String(item[getIdField()]);
+    const info = concerned[cle];
+    if (!info) return loadingConcerned ? '…' : '—';
+    const lignes: React.ReactNode[] = [];
+    if (info.mediateurs && info.mediateurs.length > 0) {
+      lignes.push(
+        <div key="med" style={{ marginBottom: 4 }}>
+          <strong>{t('Médiateur(s) :')}</strong> {joindre(info.mediateurs, ', ')}
+        </div>
+      );
+    }
+    if (info.mode === 'toutes') {
+      lignes.push(<div key="all">{t('Toutes les particules')}</div>);
+    } else if (entity === 'processus') {
+      const entrants = info.particules.filter((p: any) => p.role === 'entrant');
+      const sortants = info.particules.filter((p: any) => p.role === 'sortant');
+      const mediateurs = info.particules.filter((p: any) => p.role === 'medicateur');
+      if (entrants.length > 0 || sortants.length > 0) {
+        lignes.push(<div key="reaction">{joindre(entrants, ' + ')} → {joindre(sortants, ' + ')}</div>);
+      }
+      if (mediateurs.length > 0) {
+        lignes.push(
+          <div key="mediateurs" style={{ marginTop: 2 }}>
+            <strong>{t('Médiateur(s) :')}</strong> {joindre(mediateurs, ', ')}
+          </div>
+        );
+      }
+    } else if (info.particules.length > 0) {
+      const ouvert = openCells.has(cle);
+      const visibles = ouvert ? info.particules : info.particules.slice(0, MAX_VISIBLES);
+      const reste = info.particules.length - MAX_VISIBLES;
+      lignes.push(
+        <div key="liste" style={ouvert ? { maxHeight: 220, overflowY: 'auto' } : undefined}>
+          {joindre(visibles, ', ')}
+        </div>
+      );
+      if (reste > 0) {
+        lignes.push(
+          <button key="toggle" onClick={() => basculer(cle)}
+                  style={{ background: 'none', border: 'none', color: '#1565c0', cursor: 'pointer', padding: '2px 0' }}>
+            {ouvert ? t('réduire') : `+${reste} ${t('autres')} (${info.particules.length})`}
+          </button>
+        );
+      }
+    }
+    if (lignes.length === 0) return '—';
+    return <div style={{ minWidth: 240 }}>{lignes}</div>;
+  };
+
+  const colonnesSup = entity !== 'particules' ? 1 : 0;
+
   if (!config) return <div className="entity-list"><h2>{t('Entite inconnue')}</h2></div>;
 
   return (
     <div className="entity-list">
-      <button className="back-link" onClick={() => navigate('/')}>{t("← Retour a l'accueil")}</button>
+      <button className="back-link" onClick={() => navigate('/')}>{t("← Retour à l'accueil")}</button>
       <h2>{config.icon} {t(config.label)}</h2>
       
       <div className="list-toolbar">
@@ -278,11 +373,12 @@ const EntityList: React.FC = () => {
                   {sortConfig?.key === f.name && <span className="sort-indicator">{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>}
                 </th>
               ))}
+              {colonnesSup > 0 && <th>{t('Particules concernées')}</th>}
             </tr>
           </thead>
           <tbody>
             {sortedData.length === 0 ? (
-              <tr><td colSpan={Math.max(visibleColumns.length + 1, 1)} className="no-data">
+              <tr><td colSpan={Math.max(visibleColumns.length + 1 + colonnesSup, 1)} className="no-data">
                 {data.length === 0 && !loading ? t('Aucune donnee (API en cours de reveil ?)') : t('Aucune donnee')}
               </td></tr>
             ) : (
@@ -313,15 +409,16 @@ const EntityList: React.FC = () => {
                           : f.name === 'charge_e'
                             ? formatCharge(item[f.name])
                             : item[f.name] !== null && item[f.name] !== undefined 
-                              ? String(item[f.name]) 
+                              ? (entity === 'particules' ? String(item[f.name]) : t(String(item[f.name])))
                               : '—'
                         }
                       </td>
                     ))}
+                    {colonnesSup > 0 && <td>{renderConcernees(item)}</td>}
                   </tr>
                   {expandedRows.has(item[getIdField()]) && (
                     <tr className="reference-row">
-                      <td colSpan={Math.max(visibleColumns.length + 1, 1)}>
+                      <td colSpan={Math.max(visibleColumns.length + 1 + colonnesSup, 1)}>
                         <div className="reference-panel">
                           {loadingRefs[item[getIdField()]] ? (
                             <span>{t('Chargement...')}</span>
